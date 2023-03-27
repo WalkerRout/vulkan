@@ -1,0 +1,1 @@
+/usr/bin/c++ CMakeFiles/vulkan_test.dir/main.cpp.o -o vulkan_test   -L/home/walker/Workspace/cpp-workspace/vulkan/lib  -Wl,-rpath,/home/walker/Workspace/cpp-workspace/vulkan/lib ../src/libvulkan_lib.a ../lib/libgtest.a -lglfw -lvulkan -ldl -lGL -lm -lpthread 

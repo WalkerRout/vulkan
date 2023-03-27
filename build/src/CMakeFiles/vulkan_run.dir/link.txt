@@ -1,0 +1,1 @@
+/usr/bin/c++ CMakeFiles/vulkan_run.dir/main.cpp.o -o vulkan_run   -L/home/walker/Workspace/cpp-workspace/vulkan/lib  -Wl,-rpath,/home/walker/Workspace/cpp-workspace/vulkan/lib -lglfw -lvulkan -ldl -lGL -lm 
