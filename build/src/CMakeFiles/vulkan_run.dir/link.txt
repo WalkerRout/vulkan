@@ -1,1 +1,0 @@
-/usr/bin/c++ CMakeFiles/vulkan_run.dir/main.cpp.o CMakeFiles/vulkan_run.dir/triangle.cpp.o -o vulkan_run  -lglfw -lvulkan -ldl -lGL -lm 

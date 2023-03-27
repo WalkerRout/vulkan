@@ -1,2 +1,0 @@
-/usr/bin/ar qc libvulkan_lib.a CMakeFiles/vulkan_lib.dir/main.cpp.o CMakeFiles/vulkan_lib.dir/triangle.cpp.o
-/usr/bin/ranlib libvulkan_lib.a
