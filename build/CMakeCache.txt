@@ -353,6 +353,9 @@ vulkan_IS_TOP_LEVEL:STATIC=ON
 //Value Computed by CMake
 vulkan_SOURCE_DIR:STATIC=/home/walker/Workspace/cpp-workspace/vulkan
 
+//Dependencies for the target
+vulkan_lib_LIB_DEPENDS:STATIC=general;-lglfw;general;-lvulkan;general;-ldl;general;-lGL;general;-lm;
+
 
 ########################
 # INTERNAL cache entries

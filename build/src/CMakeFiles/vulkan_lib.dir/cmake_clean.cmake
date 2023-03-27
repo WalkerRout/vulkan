@@ -1,6 +1,8 @@
 file(REMOVE_RECURSE
   "CMakeFiles/vulkan_lib.dir/main.cpp.o"
   "CMakeFiles/vulkan_lib.dir/main.cpp.o.d"
+  "CMakeFiles/vulkan_lib.dir/triangle.cpp.o"
+  "CMakeFiles/vulkan_lib.dir/triangle.cpp.o.d"
   "libvulkan_lib.a"
   "libvulkan_lib.pdb"
 )

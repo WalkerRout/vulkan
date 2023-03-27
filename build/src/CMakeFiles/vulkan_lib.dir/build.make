@@ -83,17 +83,33 @@ src/CMakeFiles/vulkan_lib.dir/main.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/vulkan_lib.dir/main.cpp.s"
 	cd /home/walker/Workspace/cpp-workspace/vulkan/build/src && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/walker/Workspace/cpp-workspace/vulkan/src/main.cpp -o CMakeFiles/vulkan_lib.dir/main.cpp.s
 
+src/CMakeFiles/vulkan_lib.dir/triangle.cpp.o: src/CMakeFiles/vulkan_lib.dir/flags.make
+src/CMakeFiles/vulkan_lib.dir/triangle.cpp.o: /home/walker/Workspace/cpp-workspace/vulkan/src/triangle.cpp
+src/CMakeFiles/vulkan_lib.dir/triangle.cpp.o: src/CMakeFiles/vulkan_lib.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/walker/Workspace/cpp-workspace/vulkan/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Building CXX object src/CMakeFiles/vulkan_lib.dir/triangle.cpp.o"
+	cd /home/walker/Workspace/cpp-workspace/vulkan/build/src && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT src/CMakeFiles/vulkan_lib.dir/triangle.cpp.o -MF CMakeFiles/vulkan_lib.dir/triangle.cpp.o.d -o CMakeFiles/vulkan_lib.dir/triangle.cpp.o -c /home/walker/Workspace/cpp-workspace/vulkan/src/triangle.cpp
+
+src/CMakeFiles/vulkan_lib.dir/triangle.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/vulkan_lib.dir/triangle.cpp.i"
+	cd /home/walker/Workspace/cpp-workspace/vulkan/build/src && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/walker/Workspace/cpp-workspace/vulkan/src/triangle.cpp > CMakeFiles/vulkan_lib.dir/triangle.cpp.i
+
+src/CMakeFiles/vulkan_lib.dir/triangle.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/vulkan_lib.dir/triangle.cpp.s"
+	cd /home/walker/Workspace/cpp-workspace/vulkan/build/src && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/walker/Workspace/cpp-workspace/vulkan/src/triangle.cpp -o CMakeFiles/vulkan_lib.dir/triangle.cpp.s
+
 # Object files for target vulkan_lib
 vulkan_lib_OBJECTS = \
-"CMakeFiles/vulkan_lib.dir/main.cpp.o"
+"CMakeFiles/vulkan_lib.dir/main.cpp.o" \
+"CMakeFiles/vulkan_lib.dir/triangle.cpp.o"
 
 # External object files for target vulkan_lib
 vulkan_lib_EXTERNAL_OBJECTS =
 
 src/libvulkan_lib.a: src/CMakeFiles/vulkan_lib.dir/main.cpp.o
+src/libvulkan_lib.a: src/CMakeFiles/vulkan_lib.dir/triangle.cpp.o
 src/libvulkan_lib.a: src/CMakeFiles/vulkan_lib.dir/build.make
 src/libvulkan_lib.a: src/CMakeFiles/vulkan_lib.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/home/walker/Workspace/cpp-workspace/vulkan/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Linking CXX static library libvulkan_lib.a"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/home/walker/Workspace/cpp-workspace/vulkan/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Linking CXX static library libvulkan_lib.a"
 	cd /home/walker/Workspace/cpp-workspace/vulkan/build/src && $(CMAKE_COMMAND) -P CMakeFiles/vulkan_lib.dir/cmake_clean_target.cmake
 	cd /home/walker/Workspace/cpp-workspace/vulkan/build/src && $(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/vulkan_lib.dir/link.txt --verbose=$(VERBOSE)
 
