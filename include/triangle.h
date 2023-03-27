@@ -8,14 +8,28 @@
 #include <iostream>
 #include <stdexcept>
 #include <cstdlib>
+#include <vector>
+
+#define ENABLE_VALIDATION_LAYERS // enabled by default
 
 namespace triangle {
+
+const std::vector<const char*> validation_layers = {
+  "VK_LAYER_LUNARG_standard_validation"
+  //"VK_LAYER_KHRONOS_validation"
+};
+
+#ifdef ENABLE_VALIDATION_LAYERS
+const bool enable_validation_layers = true;
+#else
+const bool enable_validation_layers = false;
+#endif // NDEBUG
 
 struct TriangleApplication {
   static const std::size_t WIDTH  = 800;
   static const std::size_t HEIGHT = 600;
 
-  //TriangleApplication();
+  TriangleApplication() = default;
 
 public:
   auto run() -> void;
@@ -35,6 +49,6 @@ private:
   VkInstance instance;
 };
 
-}
+} // end of namespace triangle
 
 #endif // TRIANGLE_H
