@@ -1,1 +1,1 @@
-/usr/bin/c++ CMakeFiles/vulkan_run.dir/main.cpp.o CMakeFiles/vulkan_run.dir/triangle.cpp.o -o vulkan_run   -L/home/walker/Workspace/cpp-workspace/vulkan/lib  -Wl,-rpath,/home/walker/Workspace/cpp-workspace/vulkan/lib -lglfw -lvulkan -ldl -lGL -lm 
+/usr/bin/c++ CMakeFiles/vulkan_run.dir/main.cpp.o CMakeFiles/vulkan_run.dir/triangle.cpp.o -o vulkan_run  -lglfw -lvulkan -ldl -lGL -lm 

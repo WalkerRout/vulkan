@@ -9,6 +9,7 @@ set(CMAKE_DEPENDS_LANGUAGES
 # The set of dependency files which are needed:
 set(CMAKE_DEPENDS_DEPENDENCY_FILES
   "/home/walker/Workspace/cpp-workspace/vulkan/test/main.cpp" "test/CMakeFiles/vulkan_test.dir/main.cpp.o" "gcc" "test/CMakeFiles/vulkan_test.dir/main.cpp.o.d"
+  "/home/walker/Workspace/cpp-workspace/vulkan/test/test_triangle.cpp" "test/CMakeFiles/vulkan_test.dir/test_triangle.cpp.o" "gcc" "test/CMakeFiles/vulkan_test.dir/test_triangle.cpp.o.d"
   )
 
 # Targets to which this target links.

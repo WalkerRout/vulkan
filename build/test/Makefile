@@ -199,6 +199,30 @@ main.cpp.s:
 	cd /home/walker/Workspace/cpp-workspace/vulkan/build && $(MAKE) $(MAKESILENT) -f test/CMakeFiles/vulkan_test.dir/build.make test/CMakeFiles/vulkan_test.dir/main.cpp.s
 .PHONY : main.cpp.s
 
+test_triangle.o: test_triangle.cpp.o
+.PHONY : test_triangle.o
+
+# target to build an object file
+test_triangle.cpp.o:
+	cd /home/walker/Workspace/cpp-workspace/vulkan/build && $(MAKE) $(MAKESILENT) -f test/CMakeFiles/vulkan_test.dir/build.make test/CMakeFiles/vulkan_test.dir/test_triangle.cpp.o
+.PHONY : test_triangle.cpp.o
+
+test_triangle.i: test_triangle.cpp.i
+.PHONY : test_triangle.i
+
+# target to preprocess a source file
+test_triangle.cpp.i:
+	cd /home/walker/Workspace/cpp-workspace/vulkan/build && $(MAKE) $(MAKESILENT) -f test/CMakeFiles/vulkan_test.dir/build.make test/CMakeFiles/vulkan_test.dir/test_triangle.cpp.i
+.PHONY : test_triangle.cpp.i
+
+test_triangle.s: test_triangle.cpp.s
+.PHONY : test_triangle.s
+
+# target to generate assembly for a file
+test_triangle.cpp.s:
+	cd /home/walker/Workspace/cpp-workspace/vulkan/build && $(MAKE) $(MAKESILENT) -f test/CMakeFiles/vulkan_test.dir/build.make test/CMakeFiles/vulkan_test.dir/test_triangle.cpp.s
+.PHONY : test_triangle.cpp.s
+
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -215,6 +239,9 @@ help:
 	@echo "... main.o"
 	@echo "... main.i"
 	@echo "... main.s"
+	@echo "... test_triangle.o"
+	@echo "... test_triangle.i"
+	@echo "... test_triangle.s"
 .PHONY : help
 
 

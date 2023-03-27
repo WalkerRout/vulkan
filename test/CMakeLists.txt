@@ -5,4 +5,6 @@ set(SOURCES ${TEST_SOURCES})
 add_executable(${EXEC} ${TEST_SOURCES})
 add_test(NAME ${EXEC} COMMAND ${EXEC})
 
-target_link_libraries(${EXEC} PUBLIC ${CMAKE_PROJECT_NAME}_lib gtest -lglfw -lvulkan -ldl -lGL -lm)
+set(LIBRARY_LINK_FLAGS -lglfw -lvulkan -ldl -lGL -lm)
+
+target_link_libraries(${EXEC} PUBLIC ${CMAKE_PROJECT_NAME}_lib gtest ${LIBRARY_LINK_FLAGS})

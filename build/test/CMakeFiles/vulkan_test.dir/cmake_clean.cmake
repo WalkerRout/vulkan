@@ -1,6 +1,8 @@
 file(REMOVE_RECURSE
   "CMakeFiles/vulkan_test.dir/main.cpp.o"
   "CMakeFiles/vulkan_test.dir/main.cpp.o.d"
+  "CMakeFiles/vulkan_test.dir/test_triangle.cpp.o"
+  "CMakeFiles/vulkan_test.dir/test_triangle.cpp.o.d"
   "vulkan_test"
   "vulkan_test.pdb"
 )
