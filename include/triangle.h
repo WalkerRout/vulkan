@@ -61,6 +61,7 @@ private:
   auto create_logical_device(void) -> void;
   auto create_surface(void) -> void;
   auto create_swap_chain(void) -> void;
+  auto create_image_views(void) -> void;
 
   auto create_debug_utils_messenger_ext(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* p_create_info, const VkAllocationCallbacks* p_allocator, VkDebugUtilsMessengerEXT* p_debug_msnger) -> VkResult;
   auto destroy_debug_utils_messenger_ext(VkInstance instance, VkDebugUtilsMessengerEXT debug_msnger, const VkAllocationCallbacks* p_allocator) -> void;
@@ -88,6 +89,8 @@ private:
   std::vector<VkImage> swap_chain_images;
   VkFormat swap_chain_image_format;
   VkExtent2D swap_chain_extent;
+
+  std::vector<VkImageView> swap_chain_image_views;
 };
 
 } // end of namespace triangle

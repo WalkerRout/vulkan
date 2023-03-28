@@ -67,6 +67,7 @@ auto TriangleApplication::init_vulkan(void) -> void {
   pick_physical_device();
   create_logical_device();
   create_swap_chain();
+  create_image_views();
 }
 
 auto TriangleApplication::main_loop(void) -> void {
@@ -77,6 +78,10 @@ auto TriangleApplication::main_loop(void) -> void {
 
 auto TriangleApplication::cleanup(void) -> void {
   // vulkan cleanup
+  for(auto&& image_view : swap_chain_image_views) {
+    vkDestroyImageView(device, image_view, nullptr);
+  }
+
   vkDestroySwapchainKHR(device, swap_chain, nullptr);
   vkDestroyDevice(device, nullptr);
 
@@ -264,6 +269,33 @@ auto TriangleApplication::create_swap_chain(void) -> void {
 
   swap_chain_image_format = surface_format.format;
   swap_chain_extent = extent;
+}
+
+auto TriangleApplication::create_image_views(void) -> void {
+  auto image_count = swap_chain_images.size();
+  swap_chain_image_views.resize(image_count);
+
+  for(int i = 0; i < image_count; ++i) {
+    VkImageViewCreateInfo create_info{};
+    create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    create_info.image = swap_chain_images[i];
+    create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    create_info.format = swap_chain_image_format;
+
+    create_info.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+    create_info.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+    create_info.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+    create_info.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+
+    create_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    create_info.subresourceRange.baseMipLevel = 0;
+    create_info.subresourceRange.levelCount = 1;
+    create_info.subresourceRange.baseArrayLayer = 0;
+    create_info.subresourceRange.layerCount = 1;
+
+    if (vkCreateImageView(device, &create_info, nullptr, &swap_chain_image_views[i]) != VK_SUCCESS)
+      throw std::runtime_error("failed to create image views!");
+  }
 }
 
 auto TriangleApplication::create_debug_utils_messenger_ext(
