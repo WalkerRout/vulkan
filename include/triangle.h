@@ -31,22 +31,27 @@ struct TriangleApplication {
 
   TriangleApplication() = default;
 
+// Main Application Pipeline
 public:
   auto run() -> void;
 
 private:
-  // Main Application Pipeline
   auto init_window(void) -> void;
   auto init_vulkan(void) -> void;
   auto main_loop(void) -> void;
   auto cleanup(void) -> void;
-  // End of Main Application Pipeline
+// End of Main Application Pipeline
 
-  auto get_window_user_ptr(void) const -> void*;
+// Utility
+private:
   auto create_instance(void) -> void;
   auto setup_debug_messenger(void) -> void;
   auto create_debug_utils_messenger_ext(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* p_create_info, const VkAllocationCallbacks* p_allocator, VkDebugUtilsMessengerEXT* p_debug_msnger) -> VkResult;
   auto destroy_debug_utils_messenger_ext(VkInstance instance, VkDebugUtilsMessengerEXT debug_msnger, const VkAllocationCallbacks* p_allocator) -> void;
+
+public:
+  auto get_window_user_ptr(void) const -> void*;
+// End of Utility
 
 private:
   GLFWwindow* window;

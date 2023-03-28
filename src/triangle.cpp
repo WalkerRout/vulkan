@@ -61,10 +61,6 @@ auto TriangleApplication::cleanup(void) -> void {
 }
 // End of Main Application Pipeline
 
-auto TriangleApplication::get_window_user_ptr(void) const -> void* {
-  return glfwGetWindowUserPointer(window);
-}
-
 auto TriangleApplication::create_instance(void) -> void {
   if(enable_validation_layers && !check_validation_layer_support())
     throw std::runtime_error("Error - validation layers requested, but unavailable");
@@ -131,6 +127,10 @@ auto TriangleApplication::destroy_debug_utils_messenger_ext(
   auto func = (PFN_vkDestroyDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
   if (func != nullptr)
     func(instance, debug_msnger, p_allocator);
+}
+
+auto TriangleApplication::get_window_user_ptr(void) const -> void* {
+  return glfwGetWindowUserPointer(window);
 }
 
 } // end of namespace triangle

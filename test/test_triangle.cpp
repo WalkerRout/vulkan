@@ -11,7 +11,7 @@ TEST(test_triangle, test_app_creation) {
     triangle::TriangleApplication app;
     app.run();
     EXPECT_TRUE(true);
-  } catch (const std::exception& e) {
+  } catch(const std::exception& e) {
     std::cerr << e.what() << std::endl;
     EXPECT_TRUE(false);
   }
