@@ -165,6 +165,42 @@ auto TriangleApplication::pick_physical_device(void) -> void {
     throw std::runtime_error("Error - failed to find suitable GPU(s)");
 }
 
+auto TriangleApplication::create_logical_device(void) -> void {
+  QueueFamilyIndices indices = find_queue_families(physical_device);
+
+  VkDeviceQueueCreateInfo queue_create_info{};
+  queue_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+  queue_create_info.queueFamilyIndex = indices.graphics_family.value(); // unwrap option
+  queue_create_info.queueCount = 1;
+
+  auto queue_priority = 1.f;
+  queue_create_info.pQueuePriorities = &queue_priority;
+
+  VkPhysicalDeviceFeatures device_features{};
+
+  VkDeviceCreateInfo create_info{};
+  create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+
+  create_info.pQueueCreateInfos = &queue_create_info;
+  create_info.queueCreateInfoCount = 1;
+
+  create_info.pEnabledFeatures = &device_features;
+
+  create_info.enabledExtensionCount = 0;
+
+  if(enable_validation_layers) {
+    create_info.enabledLayerCount = static_cast<uint32_t>(validation_layers.size());
+    create_info.ppEnabledLayerNames = validation_layers.data();
+  } else {
+    create_info.enabledLayerCount = 0;
+  }
+
+  if(vkCreateDevice(physical_device, &create_info, nullptr, &device) != VK_SUCCESS)
+    throw std::runtime_error("Error - failed to create logical device");
+
+  vkGetDeviceQueue(device, indices.graphics_family.value(), 0, &graphics_queue);
+}
+
 auto TriangleApplication::get_window_user_ptr(void) const -> void* {
   return glfwGetWindowUserPointer(window);
 }
