@@ -42,11 +42,16 @@ private:
   auto cleanup(void) -> void;
   // End of Main Application Pipeline
 
+  auto get_window_user_ptr(void) const -> void*;
   auto create_instance(void) -> void;
+  auto setup_debug_messenger(void) -> void;
+  auto create_debug_utils_messenger_ext(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* p_create_info, const VkAllocationCallbacks* p_allocator, VkDebugUtilsMessengerEXT* p_debug_msnger) -> VkResult;
+  auto destroy_debug_utils_messenger_ext(VkInstance instance, VkDebugUtilsMessengerEXT debug_msnger, const VkAllocationCallbacks* p_allocator) -> void;
 
 private:
   GLFWwindow* window;
   VkInstance instance;
+  VkDebugUtilsMessengerEXT debug_messenger;
 };
 
 } // end of namespace triangle
