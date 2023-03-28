@@ -9,6 +9,9 @@ set(EXEC vulkan)
 # set the C++20 standard
 set(CMAKE_CXX_STANDARD 20)
 
+# set any compiler flags
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
+
 # I../include
 # L../lib
 include_directories(include)
