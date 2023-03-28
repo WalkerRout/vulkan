@@ -1,10 +1,23 @@
 
 #include <iostream>
 #include <stdexcept>
+#include <optional>
 #include <cstdlib>
 #include <cstring>
 
 #include "triangle.h"
+
+struct QueueFamilyIndices {
+  QueueFamilyIndices() = default;
+
+public:
+  auto is_complete() -> bool {
+    return graphics_family.has_value();
+  }
+
+public:
+  std::optional<uint32_t> graphics_family;
+};
 
 static auto check_validation_layer_support(void) -> bool;
 static auto message_callback_get_required_extensions(void) -> std::vector<const char*>;
@@ -14,6 +27,8 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(
   const VkDebugUtilsMessengerCallbackDataEXT* p_callback_data,
   void* p_user_data);
 static auto populate_debug_messenger_create_info(VkDebugUtilsMessengerCreateInfoEXT& create_info) -> void;
+static auto is_device_suitable(VkPhysicalDevice device) -> bool;
+static auto find_queue_families(VkPhysicalDevice device) -> QueueFamilyIndices;
 
 namespace triangle {
 
@@ -41,6 +56,7 @@ auto TriangleApplication::init_window(void) -> void {
 auto TriangleApplication::init_vulkan(void) -> void {
   create_instance();
   setup_debug_messenger();
+  pick_physical_device();
 }
 
 auto TriangleApplication::main_loop(void) -> void {
@@ -129,6 +145,26 @@ auto TriangleApplication::destroy_debug_utils_messenger_ext(
     func(instance, debug_msnger, p_allocator);
 }
 
+auto TriangleApplication::pick_physical_device(void) -> void {
+  uint32_t device_count = 0;
+  vkEnumeratePhysicalDevices(instance, &device_count, nullptr);
+  if(device_count == 0)
+    throw std::runtime_error("Error - failed to find GPU(s) with Vulkan support");
+
+  std::vector<VkPhysicalDevice> devices(device_count);
+  vkEnumeratePhysicalDevices(instance, &device_count, devices.data());
+
+  for(const auto& device : devices) {
+    if(is_device_suitable(device)) {
+      physical_device = device;
+      break;
+    }
+  }
+
+  if(physical_device == VK_NULL_HANDLE)
+    throw std::runtime_error("Error - failed to find suitable GPU(s)");
+}
+
 auto TriangleApplication::get_window_user_ptr(void) const -> void* {
   return glfwGetWindowUserPointer(window);
 }
@@ -153,9 +189,7 @@ static auto check_validation_layer_support(void) -> bool {
       }
     }
 
-    if(!layer_found) {
-      return false;
-    }
+    if(!layer_found) return false;
   }
 
   return true;
@@ -211,4 +245,27 @@ static auto populate_debug_messenger_create_info(VkDebugUtilsMessengerCreateInfo
   create_info.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
   create_info.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
   create_info.pfnUserCallback = debug_callback;
+}
+
+static auto is_device_suitable(VkPhysicalDevice device) -> bool {
+  return find_queue_families(device).is_complete();
+}
+
+static auto find_queue_families(VkPhysicalDevice device) -> QueueFamilyIndices {
+  QueueFamilyIndices indices;
+
+  uint32_t queue_family_count = 0;
+  vkGetPhysicalDeviceQueueFamilyProperties(device, &queue_family_count, nullptr);
+
+  std::vector<VkQueueFamilyProperties> queue_families(queue_family_count);
+  vkGetPhysicalDeviceQueueFamilyProperties(device, &queue_family_count, queue_families.data());
+
+  for (int i = 0; const auto& queue_family : queue_families) {
+    if(queue_family.queueFlags) //  & VK_QUEUE_GRAPHICS_BIT
+      indices.graphics_family = i;
+    if (indices.is_complete()) break;
+    ++i;
+  }
+
+  return indices;
 }

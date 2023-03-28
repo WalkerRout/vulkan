@@ -48,6 +48,7 @@ private:
   auto setup_debug_messenger(void) -> void;
   auto create_debug_utils_messenger_ext(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* p_create_info, const VkAllocationCallbacks* p_allocator, VkDebugUtilsMessengerEXT* p_debug_msnger) -> VkResult;
   auto destroy_debug_utils_messenger_ext(VkInstance instance, VkDebugUtilsMessengerEXT debug_msnger, const VkAllocationCallbacks* p_allocator) -> void;
+  auto pick_physical_device(void) -> void;
 
 public:
   auto get_window_user_ptr(void) const -> void*;
@@ -57,6 +58,7 @@ private:
   GLFWwindow* window;
   VkInstance instance;
   VkDebugUtilsMessengerEXT debug_messenger;
+  VkPhysicalDevice physical_device = VK_NULL_HANDLE;
 };
 
 } // end of namespace triangle
