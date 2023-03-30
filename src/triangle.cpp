@@ -73,6 +73,7 @@ auto TriangleApplication::init_vulkan(void) -> void {
   create_image_views();
   create_render_pass();
   create_graphics_pipeline();
+  create_framebuffers();
 }
 
 auto TriangleApplication::main_loop(void) -> void {
@@ -83,13 +84,15 @@ auto TriangleApplication::main_loop(void) -> void {
 
 auto TriangleApplication::cleanup(void) -> void {
   // vulkan cleanup
+  for(auto&& framebuffer : swap_chain_framebuffers)
+    vkDestroyFramebuffer(device, framebuffer, nullptr);
+
   vkDestroyPipeline(device, graphics_pipeline, nullptr);
   vkDestroyPipelineLayout(device, pipeline_layout, nullptr);
   vkDestroyRenderPass(device, render_pass, nullptr);
 
-  for(auto&& image_view : swap_chain_image_views) {
+  for(auto&& image_view : std::move(swap_chain_image_views))
     vkDestroyImageView(device, image_view, nullptr);
-  }
 
   vkDestroySwapchainKHR(device, swap_chain, nullptr);
   vkDestroyDevice(device, nullptr);
@@ -155,7 +158,7 @@ auto TriangleApplication::setup_debug_messenger(void) -> void {
   populate_debug_messenger_create_info(create_info);
 
   if(create_debug_utils_messenger_ext(instance, &create_info, nullptr, &debug_messenger) != VK_SUCCESS)
-    throw std::runtime_error("failed to set up debug messenger!");
+    throw std::runtime_error("Error - failed to set up debug messenger");
 }
 
 auto TriangleApplication::pick_physical_device(void) -> void {
@@ -303,7 +306,7 @@ auto TriangleApplication::create_image_views(void) -> void {
     create_info.subresourceRange.layerCount = 1;
 
     if (vkCreateImageView(device, &create_info, nullptr, &swap_chain_image_views[i]) != VK_SUCCESS)
-      throw std::runtime_error("failed to create image views!");
+      throw std::runtime_error("Error - failed to create image views");
   }
 }
 
@@ -335,7 +338,7 @@ auto TriangleApplication::create_render_pass(void) -> void {
   render_pass_info.pSubpasses = &subpass;
 
   if (vkCreateRenderPass(device, &render_pass_info, nullptr, &render_pass) != VK_SUCCESS)
-    throw std::runtime_error("failed to create render pass!");
+    throw std::runtime_error("Error - failed to create render pass");
 }
 
 auto TriangleApplication::create_graphics_pipeline(void) -> void {
@@ -499,14 +502,30 @@ auto TriangleApplication::create_graphics_pipeline(void) -> void {
   pipeline_info.subpass = 0;
 
   if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipeline_info, nullptr, &graphics_pipeline) != VK_SUCCESS)
-    throw std::runtime_error("failed to create graphics pipeline!");
+    throw std::runtime_error("Error - failed to create graphics pipeline");
 
   vkDestroyShaderModule(device, vertex_shader, nullptr);
   vkDestroyShaderModule(device, fragment_shader, nullptr);
 }
 
 auto TriangleApplication::create_framebuffers(void) -> void {
-  
+  swap_chain_framebuffers.resize(swap_chain_image_views.size());
+
+  for (size_t i = 0; i < swap_chain_image_views.size(); i++) {
+    VkImageView* attachments = &swap_chain_image_views[i];
+
+    VkFramebufferCreateInfo framebuffer_info{};
+    framebuffer_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+    framebuffer_info.renderPass = render_pass;
+    framebuffer_info.attachmentCount = 1;
+    framebuffer_info.pAttachments = attachments;
+    framebuffer_info.width = swap_chain_extent.width;
+    framebuffer_info.height = swap_chain_extent.height;
+    framebuffer_info.layers = 1;
+
+    if (vkCreateFramebuffer(device, &framebuffer_info, nullptr, &swap_chain_framebuffers[i]) != VK_SUCCESS)
+      throw std::runtime_error("Error - failed to create framebuffer");
+  }
 }
 
 auto TriangleApplication::create_debug_utils_messenger_ext(
