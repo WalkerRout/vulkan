@@ -19,8 +19,8 @@ struct SwapChainSupportDetails;
 namespace triangle {
 
 const std::vector<const char*> validation_layers = {
-  "VK_LAYER_LUNARG_standard_validation"
-  //"VK_LAYER_KHRONOS_validation"
+  //"VK_LAYER_LUNARG_standard_validation"
+  "VK_LAYER_KHRONOS_validation"
 };
 
 const std::vector<const char*> device_extensions = {
@@ -62,6 +62,7 @@ private:
   auto create_surface(void) -> void;
   auto create_swap_chain(void) -> void;
   auto create_image_views(void) -> void;
+  auto create_graphics_pipeline(void) -> void;
 
   auto create_debug_utils_messenger_ext(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* p_create_info, const VkAllocationCallbacks* p_allocator, VkDebugUtilsMessengerEXT* p_debug_msnger) -> VkResult;
   auto destroy_debug_utils_messenger_ext(VkInstance instance, VkDebugUtilsMessengerEXT debug_msnger, const VkAllocationCallbacks* p_allocator) -> void;

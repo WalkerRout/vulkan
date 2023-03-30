@@ -7,6 +7,7 @@
 #include <set>
 #include <limits>
 #include <algorithm>
+#include <fstream>
 
 #include "triangle.h"
 
@@ -31,11 +32,13 @@ struct SwapChainSupportDetails {
 
 static auto check_validation_layer_support(void) -> bool;
 static auto message_callback_get_required_extensions(void) -> std::vector<const char*>;
-static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT message_severity, VkDebugUtilsMessageTypeFlagsEXT message_type, const VkDebugUtilsMessengerCallbackDataEXT* p_callback_data, void* p_user_data);
-static auto populate_debug_messenger_create_info(VkDebugUtilsMessengerCreateInfoEXT& create_info) -> void;
-static auto choose_swap_surface_format(const std::vector<VkSurfaceFormatKHR>& available_formats) -> VkSurfaceFormatKHR;
-static auto choose_swap_present_mode(const std::vector<VkPresentModeKHR>& available_present_modes) -> VkPresentModeKHR;
-static auto choose_swap_extent(GLFWwindow* window, const VkSurfaceCapabilitiesKHR& capabilities) -> VkExtent2D;
+static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT, VkDebugUtilsMessageTypeFlagsEXT, const VkDebugUtilsMessengerCallbackDataEXT*, void*);
+static auto populate_debug_messenger_create_info(VkDebugUtilsMessengerCreateInfoEXT&) -> void;
+static auto choose_swap_surface_format(const std::vector<VkSurfaceFormatKHR>&) -> VkSurfaceFormatKHR;
+static auto choose_swap_present_mode(const std::vector<VkPresentModeKHR>&) -> VkPresentModeKHR;
+static auto choose_swap_extent(GLFWwindow*, const VkSurfaceCapabilitiesKHR&) -> VkExtent2D;
+static auto read_file(const std::string&) -> std::vector<char>;
+static auto create_shader_module(VkDevice, const std::vector<char>&) -> VkShaderModule;
 
 namespace triangle {
 
@@ -68,6 +71,7 @@ auto TriangleApplication::init_vulkan(void) -> void {
   create_logical_device();
   create_swap_chain();
   create_image_views();
+  create_graphics_pipeline();
 }
 
 auto TriangleApplication::main_loop(void) -> void {
@@ -298,6 +302,18 @@ auto TriangleApplication::create_image_views(void) -> void {
   }
 }
 
+auto TriangleApplication::create_graphics_pipeline(void) -> void {
+  // src/triangle.cpp -> shaders/vert.spv & shaders/frag.spv
+  auto vertex_shader_bytecode   = read_file("../shaders/vert.spv");
+  auto fragment_shader_bytecode = read_file("../shaders/frag.spv");
+
+  auto vertex_shader = create_shader_module(device, vertex_shader_bytecode);
+  auto fragment_shader = create_shader_module(device, fragment_shader_bytecode);
+
+  vkDestroyShaderModule(device, vertex_shader, nullptr);
+  vkDestroyShaderModule(device, fragment_shader, nullptr);
+}
+
 auto TriangleApplication::create_debug_utils_messenger_ext(
   VkInstance instance, 
   const VkDebugUtilsMessengerCreateInfoEXT* p_create_info, 
@@ -508,4 +524,32 @@ static auto choose_swap_extent(GLFWwindow* window, const VkSurfaceCapabilitiesKH
 
     return actual_extent;
   }
+}
+
+static auto read_file(const std::string& file_name) -> std::vector<char> {
+  auto file = std::ifstream(file_name, std::ios::ate | std::ios::binary);
+  if(!file.is_open())
+    throw std::runtime_error("Error - unable to open shader SPIR-V bytecode file");
+
+  std::size_t file_size = file.tellg();
+  std::vector<char> result(file_size);
+
+  file.seekg(0);
+  file.read(result.data(), file_size);
+  file.close();
+
+  return result;
+}
+
+static auto create_shader_module(VkDevice device, const std::vector<char>& code) -> VkShaderModule {
+  VkShaderModuleCreateInfo create_info{};
+  create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+  create_info.codeSize = code.size();
+  create_info.pCode = reinterpret_cast<const uint32_t*>(code.data());
+
+  VkShaderModule shader_module{};
+  if(vkCreateShaderModule(device, &create_info, nullptr, &shader_module) != VK_SUCCESS)
+    throw std::runtime_error("Error - unable to create shader module");
+
+  return shader_module;
 }

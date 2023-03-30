@@ -17,6 +17,12 @@ set(CMAKE_CXX_STANDARD 20)
 include_directories(include)
 include_directories(src)
 
+# execute command at build time to run the bash script to compile shaders
+add_custom_target(comp_shaders
+  COMMAND bash ../shaders/compile.sh "__cmake"
+  COMMENT "Compiling shaders..."
+)
+
 add_subdirectory(src)
 add_subdirectory(test)
 add_subdirectory(lib/googletest)
