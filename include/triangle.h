@@ -19,7 +19,6 @@ struct SwapChainSupportDetails;
 namespace triangle {
 
 const std::vector<const char*> validation_layers = {
-  //"VK_LAYER_LUNARG_standard_validation"
   "VK_LAYER_KHRONOS_validation"
 };
 
@@ -28,10 +27,10 @@ const std::vector<const char*> device_extensions = {
 };
 
 #ifdef ENABLE_VALIDATION_LAYERS
-const bool enable_validation_layers = true;
+  const bool enable_validation_layers = true;
 #else
-const bool enable_validation_layers = false;
-#endif // NDEBUG
+  const bool enable_validation_layers = false;
+#endif // ENABLE_VALIDATION_LAYERS
 
 struct TriangleApplication {
   static const std::size_t WIDTH  = 800;
@@ -62,7 +61,9 @@ private:
   auto create_surface(void) -> void;
   auto create_swap_chain(void) -> void;
   auto create_image_views(void) -> void;
+  auto create_render_pass(void) -> void;
   auto create_graphics_pipeline(void) -> void;
+  auto create_framebuffers(void) -> void;
 
   auto create_debug_utils_messenger_ext(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* p_create_info, const VkAllocationCallbacks* p_allocator, VkDebugUtilsMessengerEXT* p_debug_msnger) -> VkResult;
   auto destroy_debug_utils_messenger_ext(VkInstance instance, VkDebugUtilsMessengerEXT debug_msnger, const VkAllocationCallbacks* p_allocator) -> void;
@@ -86,12 +87,17 @@ private:
   VkQueue present_queue;
 
   VkSwapchainKHR swap_chain;
-
   std::vector<VkImage> swap_chain_images;
   VkFormat swap_chain_image_format;
   VkExtent2D swap_chain_extent;
 
   std::vector<VkImageView> swap_chain_image_views;
+  std::vector<VkFramebuffer> swap_chain_framebuffers;
+
+  VkRenderPass render_pass;
+  VkPipelineLayout pipeline_layout;
+  VkPipeline graphics_pipeline;
+
 };
 
 } // end of namespace triangle
