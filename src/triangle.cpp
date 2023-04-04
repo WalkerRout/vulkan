@@ -81,12 +81,12 @@ auto TriangleApplication::init_vulkan(void) -> void {
 }
 
 auto TriangleApplication::main_loop(void) -> void {
-  int count = 0;
+  std::size_t count = 0;
   while(!glfwWindowShouldClose(window) && 
         glfwGetKey(window, GLFW_KEY_ESCAPE) != GLFW_PRESS) {
     glfwPollEvents();
     draw_frame();
-    std::cout << "Count: " << count++ << '\n';
+    //std::cout << "Count: " << count++ << '\n';
   }
   vkDeviceWaitIdle(device);
 }
@@ -755,7 +755,6 @@ auto TriangleApplication::record_command_buffer(VkCommandBuffer command_buffer, 
 auto TriangleApplication::draw_frame(void) -> void {
   // wait for previous frame to finish so command buffer and semaphores are available to use
   vkWaitForFences(device, 1, &fences_in_flight[current_frame], VK_TRUE, UINT64_MAX); // UINT64_MAX timeout
-  //std::cout << "Fence done waiting...\n";
   vkResetFences(device, 1, &fences_in_flight[current_frame]); // reset fence to unsignaled state when done waiting
 
   uint32_t image_index;
@@ -786,8 +785,6 @@ auto TriangleApplication::draw_frame(void) -> void {
   if(vkQueueSubmit(graphics_queue, 1, &submit_info, fences_in_flight[current_frame]) != VK_SUCCESS)
     throw std::runtime_error("Error - failed to submit draw command buffer");
 
-  //std::cout << "Queue submitted\n";
-
   VkSwapchainKHR swap_chains[] = {swap_chain};
 
   VkPresentInfoKHR present_info{};
@@ -800,7 +797,6 @@ auto TriangleApplication::draw_frame(void) -> void {
   present_info.pResults = nullptr; // optional
 
   vkQueuePresentKHR(present_queue, &present_info);
-  //std::cout << "Queue presented\n";
 
   current_frame = (current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
