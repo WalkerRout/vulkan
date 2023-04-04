@@ -50,7 +50,7 @@ private:
   auto cleanup(void) -> void;
 // ---- End of Main Application Pipeline ----
 
-// ---- Setup ----
+// ---- Setup/Utility ----
 public:
   auto get_window_user_ptr(void) const -> void*;
 
@@ -76,7 +76,9 @@ private:
   auto check_device_extension_support(VkPhysicalDevice device) -> bool;
   auto query_swap_chain_support(VkPhysicalDevice device) -> SwapChainSupportDetails;
   auto record_command_buffer(VkCommandBuffer command_buffer, uint32_t image_index) -> void;
-// ---- End of Setup ----
+  auto recreate_swap_chain(void) -> void;
+  auto cleanup_swap_chain(void) -> void;
+// ---- End of Setup/Utility ----
 
 // ---- Rendering ----
 public:

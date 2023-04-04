@@ -54,7 +54,7 @@ auto TriangleApplication::init_window(void) -> void {
   glfwInit();
 
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-  glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE); // no resize, causes errors with swapchain (for now)
+  glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
   window = glfwCreateWindow(WIDTH, HEIGHT, "TriangleApplication", nullptr, nullptr);
   if(window == nullptr)
@@ -101,17 +101,8 @@ auto TriangleApplication::cleanup(void) -> void {
 
   vkDestroyCommandPool(device, command_pool, nullptr);
 
-  for(auto&& framebuffer : swap_chain_framebuffers)
-    vkDestroyFramebuffer(device, framebuffer, nullptr);
+  cleanup_swap_chain();
 
-  vkDestroyPipeline(device, graphics_pipeline, nullptr);
-  vkDestroyPipelineLayout(device, pipeline_layout, nullptr);
-  vkDestroyRenderPass(device, render_pass, nullptr);
-
-  for(auto&& image_view : std::move(swap_chain_image_views))
-    vkDestroyImageView(device, image_view, nullptr);
-
-  vkDestroySwapchainKHR(device, swap_chain, nullptr);
   vkDestroyDevice(device, nullptr);
 
   if(enable_validation_layers)
@@ -749,17 +740,50 @@ auto TriangleApplication::record_command_buffer(VkCommandBuffer command_buffer, 
   if(vkEndCommandBuffer(command_buffer) != VK_SUCCESS)
     throw std::runtime_error("Error - failed to record command buffer");
 }
-// ---- End of Setup ----
+
+auto TriangleApplication::recreate_swap_chain(void) -> void {
+  vkDeviceWaitIdle(device); // dont touch resources still in use
+
+  // free resources to prepare for creation
+  cleanup_swap_chain();
+
+  create_swap_chain();
+  create_image_views(); // based on swap chain images
+  create_render_pass(); // depends on format of swap chain images (rare to change, still good to handle)
+  create_graphics_pipeline(); // viewport extent and scissor rectangle specified here
+  create_framebuffers(); // directly depend on swap chain images
+}
+
+auto TriangleApplication::cleanup_swap_chain(void) -> void {
+  for(auto&& framebuffer : swap_chain_framebuffers)
+    vkDestroyFramebuffer(device, framebuffer, nullptr);
+
+  vkDestroyPipeline(device, graphics_pipeline, nullptr);
+  vkDestroyPipelineLayout(device, pipeline_layout, nullptr);
+  vkDestroyRenderPass(device, render_pass, nullptr);
+
+  for(auto&& image_view : swap_chain_image_views)
+    vkDestroyImageView(device, image_view, nullptr);
+
+  vkDestroySwapchainKHR(device, swap_chain, nullptr);
+}
+// ---- End of Setup/Utility ----
 
 // ---- Rendering ----
 auto TriangleApplication::draw_frame(void) -> void {
   // wait for previous frame to finish so command buffer and semaphores are available to use
   vkWaitForFences(device, 1, &fences_in_flight[current_frame], VK_TRUE, UINT64_MAX); // UINT64_MAX timeout
-  vkResetFences(device, 1, &fences_in_flight[current_frame]); // reset fence to unsignaled state when done waiting
-
+  
   uint32_t image_index;
   // aquire image from chosen device and swap chain, signal sem_image_available_render when finished
-  vkAcquireNextImageKHR(device, swap_chain, UINT64_MAX, semaphores_image_available_render[current_frame], VK_NULL_HANDLE, &image_index);
+  auto result = vkAcquireNextImageKHR(device, swap_chain, UINT64_MAX, semaphores_image_available_render[current_frame], VK_NULL_HANDLE, &image_index);
+  if(result == VK_ERROR_OUT_OF_DATE_KHR) {
+    recreate_swap_chain(); return; // recreate swap chain, try again on next call of draw_frame
+  } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
+    throw std::runtime_error("Error - failed to acquire swap chain image");
+  }
+
+  vkResetFences(device, 1, &fences_in_flight[current_frame]); // reset fence to unsignaled state when done waiting
 
   // ensure command buffer can be recorded by resetting
   vkResetCommandBuffer(command_buffers[current_frame], 0);
