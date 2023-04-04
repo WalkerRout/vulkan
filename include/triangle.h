@@ -35,10 +35,11 @@ const std::vector<const char*> device_extensions = {
 struct TriangleApplication {
   static const std::size_t WIDTH  = 800;
   static const std::size_t HEIGHT = 600;
+  static const std::size_t MAX_FRAMES_IN_FLIGHT = 2;
 
   TriangleApplication() = default;
 
-// Main Application Pipeline
+// ---- Main Application Pipeline ----
 public:
   auto run() -> void;
 
@@ -47,9 +48,9 @@ private:
   auto init_vulkan(void) -> void;
   auto main_loop(void) -> void;
   auto cleanup(void) -> void;
-// End of Main Application Pipeline
+// ---- End of Main Application Pipeline ----
 
-// Utility
+// ---- Setup ----
 public:
   auto get_window_user_ptr(void) const -> void*;
 
@@ -64,6 +65,9 @@ private:
   auto create_render_pass(void) -> void;
   auto create_graphics_pipeline(void) -> void;
   auto create_framebuffers(void) -> void;
+  auto create_command_pool(void) -> void;
+  auto create_command_buffers(void) -> void;
+  auto create_sync_objects(void) -> void;
 
   auto create_debug_utils_messenger_ext(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* p_create_info, const VkAllocationCallbacks* p_allocator, VkDebugUtilsMessengerEXT* p_debug_msnger) -> VkResult;
   auto destroy_debug_utils_messenger_ext(VkInstance instance, VkDebugUtilsMessengerEXT debug_msnger, const VkAllocationCallbacks* p_allocator) -> void;
@@ -71,7 +75,15 @@ private:
   auto is_device_suitable(VkPhysicalDevice device) -> bool;
   auto check_device_extension_support(VkPhysicalDevice device) -> bool;
   auto query_swap_chain_support(VkPhysicalDevice device) -> SwapChainSupportDetails;
-// End of Utility
+  auto record_command_buffer(VkCommandBuffer command_buffer, uint32_t image_index) -> void;
+// ---- End of Setup ----
+
+// ---- Rendering ----
+public:
+  // N/A so far
+private:
+  auto draw_frame(void) -> void;
+// ---- End of Rendering ----
 
 private:
   GLFWwindow* window;
@@ -98,6 +110,13 @@ private:
   VkPipelineLayout pipeline_layout;
   VkPipeline graphics_pipeline;
 
+  VkCommandPool command_pool;
+  std::vector<VkCommandBuffer> command_buffers; // destroyed when its command pool goes out of scope
+
+  std::vector<VkSemaphore> semaphores_image_available_render;
+  std::vector<VkSemaphore> semaphores_render_finished_present;
+  std::vector<VkFence> fences_in_flight;
+  uint32_t current_frame = 0;
 };
 
 } // end of namespace triangle

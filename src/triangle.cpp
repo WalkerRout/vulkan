@@ -42,6 +42,7 @@ static auto create_shader_module(VkDevice, const std::vector<char>&) -> VkShader
 
 namespace triangle {
 
+// ---- Main Application Pipeline ----
 auto TriangleApplication::run(void) -> void {
   init_window();
   init_vulkan();
@@ -53,7 +54,7 @@ auto TriangleApplication::init_window(void) -> void {
   glfwInit();
 
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-  glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+  glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
   window = glfwCreateWindow(WIDTH, HEIGHT, "TriangleApplication", nullptr, nullptr);
   if(window == nullptr)
@@ -74,16 +75,32 @@ auto TriangleApplication::init_vulkan(void) -> void {
   create_render_pass();
   create_graphics_pipeline();
   create_framebuffers();
+  create_command_pool();
+  create_command_buffers();
+  create_sync_objects();
 }
 
 auto TriangleApplication::main_loop(void) -> void {
-  while(!glfwWindowShouldClose(window)) {
+  int count = 0;
+  while(!glfwWindowShouldClose(window) && 
+        glfwGetKey(window, GLFW_KEY_ESCAPE) != GLFW_PRESS) {
     glfwPollEvents();
+    draw_frame();
+    std::cout << "Count: " << count++ << '\n';
   }
+  vkDeviceWaitIdle(device);
 }
 
 auto TriangleApplication::cleanup(void) -> void {
   // vulkan cleanup
+  for(std::size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
+    vkDestroySemaphore(device, semaphores_image_available_render[i], nullptr);
+    vkDestroySemaphore(device, semaphores_render_finished_present[i], nullptr);
+    vkDestroyFence(device, fences_in_flight[i], nullptr);
+  }
+
+  vkDestroyCommandPool(device, command_pool, nullptr);
+
   for(auto&& framebuffer : swap_chain_framebuffers)
     vkDestroyFramebuffer(device, framebuffer, nullptr);
 
@@ -107,9 +124,9 @@ auto TriangleApplication::cleanup(void) -> void {
   glfwDestroyWindow(window);
   glfwTerminate();
 }
-// End of Main Application Pipeline
+// ---- End of Main Application Pipeline ----
 
-// Start of Utility
+// ---- Setup ----
 auto TriangleApplication::get_window_user_ptr(void) const -> void* {
   return glfwGetWindowUserPointer(window);
 }
@@ -188,7 +205,7 @@ auto TriangleApplication::create_logical_device(void) -> void {
   auto unique_queue_families = std::set<uint32_t>{indices.graphics_family.value(), indices.present_family.value()};
 
   auto queue_priority = 1.f;
-  for(auto queue_family : unique_queue_families) {
+  for(const auto queue_family : unique_queue_families) {
     VkDeviceQueueCreateInfo queue_create_info{};
     queue_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
     queue_create_info.queueFamilyIndex = queue_family;
@@ -225,7 +242,7 @@ auto TriangleApplication::create_logical_device(void) -> void {
 }
 
 auto TriangleApplication::create_surface(void) -> void {
-  if (glfwCreateWindowSurface(instance, window, nullptr, &surface) != VK_SUCCESS)
+  if(glfwCreateWindowSurface(instance, window, nullptr, &surface) != VK_SUCCESS)
     throw std::runtime_error("Error - failed to create window surface");
 }
 
@@ -239,7 +256,7 @@ auto TriangleApplication::create_swap_chain(void) -> void {
   // specifying minimum may cause interal delays, so request min+1
   auto image_count = swap_chain_support.capabilities.minImageCount + 1;
 
-  if (swap_chain_support.capabilities.maxImageCount > 0 && image_count > swap_chain_support.capabilities.maxImageCount)
+  if(swap_chain_support.capabilities.maxImageCount > 0 && image_count > swap_chain_support.capabilities.maxImageCount)
     image_count = swap_chain_support.capabilities.maxImageCount;
   
   VkSwapchainCreateInfoKHR create_info{};
@@ -287,7 +304,7 @@ auto TriangleApplication::create_image_views(void) -> void {
   auto image_count = swap_chain_images.size();
   swap_chain_image_views.resize(image_count);
 
-  for(int i = 0; i < image_count; ++i) {
+  for(std::size_t i = 0; i < image_count; ++i) {
     VkImageViewCreateInfo create_info{};
     create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
     create_info.image = swap_chain_images[i];
@@ -305,7 +322,7 @@ auto TriangleApplication::create_image_views(void) -> void {
     create_info.subresourceRange.baseArrayLayer = 0;
     create_info.subresourceRange.layerCount = 1;
 
-    if (vkCreateImageView(device, &create_info, nullptr, &swap_chain_image_views[i]) != VK_SUCCESS)
+    if(vkCreateImageView(device, &create_info, nullptr, &swap_chain_image_views[i]) != VK_SUCCESS)
       throw std::runtime_error("Error - failed to create image views");
   }
 }
@@ -330,14 +347,26 @@ auto TriangleApplication::create_render_pass(void) -> void {
   subpass.colorAttachmentCount = 1;
   subpass.pColorAttachments = &colour_attachment_ref;
 
+  VkSubpassDependency dependency{};
+  dependency.srcSubpass = VK_SUBPASS_EXTERNAL; // VK_SUBPASS_EXTERNAL refers to implicit subpasses
+  dependency.dstSubpass = 0; // refers to our subpass, which is first and only one
+  dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT; // operation to wait on
+  dependency.srcAccessMask = 0; // stages in which the operation occurs
+  // wait for the swap chain to finish reading from the image before can access it
+  // -> wait on color attachment output stage itself
+  dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT; 
+  dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
   VkRenderPassCreateInfo render_pass_info{};
   render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
   render_pass_info.attachmentCount = 1;
   render_pass_info.pAttachments = &colour_attachment;
   render_pass_info.subpassCount = 1;
   render_pass_info.pSubpasses = &subpass;
+  render_pass_info.dependencyCount = 1;
+  render_pass_info.pDependencies = &dependency;
 
-  if (vkCreateRenderPass(device, &render_pass_info, nullptr, &render_pass) != VK_SUCCESS)
+  if(vkCreateRenderPass(device, &render_pass_info, nullptr, &render_pass) != VK_SUCCESS)
     throw std::runtime_error("Error - failed to create render pass");
 }
 
@@ -412,19 +441,19 @@ auto TriangleApplication::create_graphics_pipeline(void) -> void {
   // - VK_POLYGON_MODE_LINE
   // - VK_POLYGON_MODE_POINT
   rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
-  rasterizer.lineWidth = 1.f; // 1 is max lineWidth without gpu feature
+  rasterizer.lineWidth = 1.0f; // 1 is max lineWidth without gpu feature
   rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
   rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
   rasterizer.depthBiasEnable = VK_FALSE; // allows to alter depth values
-  rasterizer.depthBiasConstantFactor = 0.f; // optional
-  rasterizer.depthBiasClamp = 0.f; // optional
-  rasterizer.depthBiasSlopeFactor = 0.f; // optional
+  rasterizer.depthBiasConstantFactor = 0.0f; // optional
+  rasterizer.depthBiasClamp = 0.0f; // optional
+  rasterizer.depthBiasSlopeFactor = 0.0f; // optional
 
   VkPipelineMultisampleStateCreateInfo multisampling{};
   multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
   multisampling.sampleShadingEnable = VK_FALSE;
   multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
-  multisampling.minSampleShading = 1.f; // optional
+  multisampling.minSampleShading = 1.0f; // optional
   multisampling.pSampleMask = nullptr; // optional
   multisampling.alphaToCoverageEnable = VK_FALSE; // optional
   multisampling.alphaToOneEnable = VK_FALSE; // optional
@@ -482,7 +511,7 @@ auto TriangleApplication::create_graphics_pipeline(void) -> void {
   pipeline_layout_info.setLayoutCount = 0;
   pipeline_layout_info.pushConstantRangeCount = 0;
 
-  if (vkCreatePipelineLayout(device, &pipeline_layout_info, nullptr, &pipeline_layout) != VK_SUCCESS)
+  if(vkCreatePipelineLayout(device, &pipeline_layout_info, nullptr, &pipeline_layout) != VK_SUCCESS)
     throw std::runtime_error("Error - failed to create pipeline layout");
 
   VkGraphicsPipelineCreateInfo pipeline_info{};
@@ -501,7 +530,7 @@ auto TriangleApplication::create_graphics_pipeline(void) -> void {
   pipeline_info.renderPass = render_pass;
   pipeline_info.subpass = 0;
 
-  if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipeline_info, nullptr, &graphics_pipeline) != VK_SUCCESS)
+  if(vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipeline_info, nullptr, &graphics_pipeline) != VK_SUCCESS)
     throw std::runtime_error("Error - failed to create graphics pipeline");
 
   vkDestroyShaderModule(device, vertex_shader, nullptr);
@@ -511,7 +540,7 @@ auto TriangleApplication::create_graphics_pipeline(void) -> void {
 auto TriangleApplication::create_framebuffers(void) -> void {
   swap_chain_framebuffers.resize(swap_chain_image_views.size());
 
-  for (size_t i = 0; i < swap_chain_image_views.size(); i++) {
+  for(std::size_t i = 0; i < swap_chain_image_views.size(); i++) {
     VkImageView* attachments = &swap_chain_image_views[i];
 
     VkFramebufferCreateInfo framebuffer_info{};
@@ -523,8 +552,59 @@ auto TriangleApplication::create_framebuffers(void) -> void {
     framebuffer_info.height = swap_chain_extent.height;
     framebuffer_info.layers = 1;
 
-    if (vkCreateFramebuffer(device, &framebuffer_info, nullptr, &swap_chain_framebuffers[i]) != VK_SUCCESS)
+    if(vkCreateFramebuffer(device, &framebuffer_info, nullptr, &swap_chain_framebuffers[i]) != VK_SUCCESS)
       throw std::runtime_error("Error - failed to create framebuffer");
+  }
+}
+
+auto TriangleApplication::create_command_pool(void) -> void {
+  QueueFamilyIndices queue_family_indices = find_queue_families(physical_device);
+
+  VkCommandPoolCreateInfo pool_info{};
+  pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+  pool_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+  pool_info.queueFamilyIndex = queue_family_indices.graphics_family.value();
+
+  if(vkCreateCommandPool(device, &pool_info, nullptr, &command_pool) != VK_SUCCESS)
+    throw std::runtime_error("Error - failed to create command pool");
+}
+
+auto TriangleApplication::create_command_buffers(void) -> void {
+  command_buffers.resize(MAX_FRAMES_IN_FLIGHT);
+
+  VkCommandBufferAllocateInfo alloc_info{};
+  alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+  alloc_info.commandPool = command_pool; // buffer will be destroyed when pool is
+  alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+  alloc_info.commandBufferCount = static_cast<uint32_t>(command_buffers.size());
+
+  if(vkAllocateCommandBuffers(device, &alloc_info, command_buffers.data()) != VK_SUCCESS)
+    throw std::runtime_error("Error - failed to allocate command buffers");
+}
+
+auto TriangleApplication::create_sync_objects(void) -> void {
+  semaphores_image_available_render.resize(MAX_FRAMES_IN_FLIGHT);
+  semaphores_render_finished_present.resize(MAX_FRAMES_IN_FLIGHT);
+  fences_in_flight.resize(MAX_FRAMES_IN_FLIGHT);
+
+  VkSemaphoreCreateInfo semaphore_info{};
+  semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+  VkFenceCreateInfo fence_info{};
+  fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+  // BREAKING: fence must start in signaled state, as the draw_frame function waits for a signal to start;
+  // at the start of the program there is no signal, so it needs to start in an initial 'on' state
+  fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+  for(std::size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
+    if(vkCreateSemaphore(device, &semaphore_info, nullptr, &semaphores_image_available_render[i]) != VK_SUCCESS)
+      throw std::runtime_error("Error - failed to create image_available_render semaphore");
+
+    if(vkCreateSemaphore(device, &semaphore_info, nullptr, &semaphores_render_finished_present[i]) != VK_SUCCESS)
+      throw std::runtime_error("Error - failed to create render_finished_present semaphore");
+
+    if(vkCreateFence(device, &fence_info, nullptr, &fences_in_flight[i]) != VK_SUCCESS)
+      throw std::runtime_error("Error - failed to create in_flight fence");
   }
 }
 
@@ -545,7 +625,7 @@ auto TriangleApplication::destroy_debug_utils_messenger_ext(
   VkDebugUtilsMessengerEXT debug_msnger, 
   const VkAllocationCallbacks* p_allocator) -> void {
   auto func = (PFN_vkDestroyDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
-  if (func != nullptr)
+  if(func != nullptr)
     func(instance, debug_msnger, p_allocator);
 }
 
@@ -558,10 +638,10 @@ auto TriangleApplication::find_queue_families(VkPhysicalDevice device) -> QueueF
   std::vector<VkQueueFamilyProperties> queue_families(queue_family_count);
   vkGetPhysicalDeviceQueueFamilyProperties(device, &queue_family_count, queue_families.data());
 
-  for (int i = 0; const auto& queue_family : queue_families) {
+  for(std::size_t i = 0; const auto& queue_family : queue_families) {
     if(queue_family.queueFlags & VK_QUEUE_GRAPHICS_BIT)
       indices.graphics_family = i;
-    if (indices.is_complete()) break;
+    if(indices.is_complete()) break;
     
     VkBool32 present_support = false;
     vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &present_support);
@@ -625,7 +705,106 @@ auto TriangleApplication::query_swap_chain_support(VkPhysicalDevice device) -> S
 
   return details;
 }
-// End of Utility
+
+auto TriangleApplication::record_command_buffer(VkCommandBuffer command_buffer, uint32_t image_index) -> void {
+  VkCommandBufferBeginInfo begin_info{};
+  begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+  begin_info.flags = 0; // optional
+  begin_info.pInheritanceInfo = nullptr; // optional, secondary command buffers use
+
+  if(vkBeginCommandBuffer(command_buffer, &begin_info) != VK_SUCCESS)
+    throw std::runtime_error("Error - failed to begin recording command buffer");
+
+  VkRenderPassBeginInfo render_pass_info{};
+  render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+  render_pass_info.renderPass = render_pass;
+  render_pass_info.framebuffer = swap_chain_framebuffers[image_index];
+  render_pass_info.renderArea.offset = {0, 0};
+  render_pass_info.renderArea.extent = swap_chain_extent;
+
+  VkClearValue clear_color = {{{0.2f, 0.2f, 0.2f, 1.0f}}};
+  render_pass_info.clearValueCount = 1;
+  render_pass_info.pClearValues = &clear_color;
+
+  vkCmdBeginRenderPass(command_buffer, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
+  vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphics_pipeline);
+
+  VkViewport viewport{};
+  viewport.x = 0.0f;
+  viewport.y = 0.0f;
+  viewport.width = static_cast<float>(swap_chain_extent.width);
+  viewport.height = static_cast<float>(swap_chain_extent.height);
+  viewport.minDepth = 0.0f;
+  viewport.maxDepth = 1.0f;
+  vkCmdSetViewport(command_buffer, 0, 1, &viewport);
+
+  VkRect2D scissor{};
+  scissor.offset = {0, 0};
+  scissor.extent = swap_chain_extent;
+  vkCmdSetScissor(command_buffer, 0, 1, &scissor);            
+
+  vkCmdDraw(command_buffer, 3, 1, 0, 0);
+  vkCmdEndRenderPass(command_buffer);
+
+  if(vkEndCommandBuffer(command_buffer) != VK_SUCCESS)
+    throw std::runtime_error("Error - failed to record command buffer");
+}
+// ---- End of Setup ----
+
+// ---- Rendering ----
+auto TriangleApplication::draw_frame(void) -> void {
+  // wait for previous frame to finish so command buffer and semaphores are available to use
+  vkWaitForFences(device, 1, &fences_in_flight[current_frame], VK_TRUE, UINT64_MAX); // UINT64_MAX timeout
+  //std::cout << "Fence done waiting...\n";
+  vkResetFences(device, 1, &fences_in_flight[current_frame]); // reset fence to unsignaled state when done waiting
+
+  uint32_t image_index;
+  // aquire image from chosen device and swap chain, signal sem_image_available_render when finished
+  vkAcquireNextImageKHR(device, swap_chain, UINT64_MAX, semaphores_image_available_render[current_frame], VK_NULL_HANDLE, &image_index);
+
+  // ensure command buffer can be recorded by resetting
+  vkResetCommandBuffer(command_buffers[current_frame], 0);
+  record_command_buffer(command_buffers[current_frame], image_index);
+
+  // queue submission and synchronization
+  VkSemaphore wait_semaphores[] = {semaphores_image_available_render[current_frame]}; // sems to wait for
+  VkSemaphore signal_semaphores[] = {semaphores_render_finished_present[current_frame]}; // sems to signal
+  // render pass will wait for VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT (subpass in create_render_pass)
+  VkPipelineStageFlags wait_stages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+
+  VkSubmitInfo submit_info{};
+  submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+  submit_info.waitSemaphoreCount = 1;
+  submit_info.pWaitSemaphores = wait_semaphores; // wait until done
+  submit_info.pWaitDstStageMask = wait_stages;
+  submit_info.commandBufferCount = 1;
+  submit_info.pCommandBuffers = &command_buffers[current_frame];
+  submit_info.signalSemaphoreCount = 1;
+  submit_info.pSignalSemaphores = signal_semaphores; // signal when done
+
+  // signal fence once command buffer finishes execution -> wait during next frame to finish
+  if(vkQueueSubmit(graphics_queue, 1, &submit_info, fences_in_flight[current_frame]) != VK_SUCCESS)
+    throw std::runtime_error("Error - failed to submit draw command buffer");
+
+  //std::cout << "Queue submitted\n";
+
+  VkSwapchainKHR swap_chains[] = {swap_chain};
+
+  VkPresentInfoKHR present_info{};
+  present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+  present_info.waitSemaphoreCount = 1;
+  present_info.pWaitSemaphores = signal_semaphores;
+  present_info.swapchainCount = 1;
+  present_info.pSwapchains = swap_chains;
+  present_info.pImageIndices = &image_index;
+  present_info.pResults = nullptr; // optional
+
+  vkQueuePresentKHR(present_queue, &present_info);
+  //std::cout << "Queue presented\n";
+
+  current_frame = (current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
+}
+// ---- End of Rendering ----
 
 } // end of namespace triangle
 
@@ -743,7 +922,7 @@ static auto choose_swap_extent(GLFWwindow* window, const VkSurfaceCapabilitiesKH
 static auto read_file(const std::string& file_name) -> std::vector<char> {
   auto file = std::ifstream(file_name, std::ios::ate | std::ios::binary);
   if(!file.is_open())
-    throw std::runtime_error("Error - unable to open shader SPIR-V bytecode file");
+    throw std::runtime_error("Error - unable to open file");
 
   std::size_t file_size = file.tellg();
   std::vector<char> result(file_size);
