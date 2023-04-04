@@ -16,6 +16,10 @@ set(CMAKE_CXX_STANDARD 20)
 # L../lib
 include_directories(include)
 include_directories(src)
+# include other directories
+if(WIN32)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -LC:/Development/local/lib -LC:/VulkanSDK/1.3.239.0/Lib -IC:/Development/local/include -IC:/VulkanSDK/1.3.239.0/Include")
+endif()
 
 # execute command at build time to run the bash script to compile shaders
 add_custom_target(comp_shaders

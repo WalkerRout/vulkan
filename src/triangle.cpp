@@ -54,7 +54,7 @@ auto TriangleApplication::init_window(void) -> void {
   glfwInit();
 
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-  glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+  glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE); // no resize, causes errors with swapchain (for now)
 
   window = glfwCreateWindow(WIDTH, HEIGHT, "TriangleApplication", nullptr, nullptr);
   if(window == nullptr)
