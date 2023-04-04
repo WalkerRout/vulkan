@@ -65,6 +65,7 @@ private:
   auto create_render_pass(void) -> void;
   auto create_graphics_pipeline(void) -> void;
   auto create_framebuffers(void) -> void;
+  auto create_vertex_buffer(void) -> void;
   auto create_command_pool(void) -> void;
   auto create_command_buffers(void) -> void;
   auto create_sync_objects(void) -> void;
@@ -78,6 +79,7 @@ private:
   auto record_command_buffer(VkCommandBuffer command_buffer, uint32_t image_index) -> void;
   auto recreate_swap_chain(void) -> void;
   auto cleanup_swap_chain(void) -> void;
+  auto find_memory_type(uint32_t type_filter, VkMemoryPropertyFlags properties) -> uint32_t;
 // ---- End of Setup/Utility ----
 
 // ---- Rendering ----
@@ -123,6 +125,9 @@ private:
   std::vector<VkSemaphore> semaphores_render_finished_present;
   std::vector<VkFence> fences_in_flight;
   uint32_t current_frame{0};
+
+  VkBuffer vertex_buffer;
+  VkDeviceMemory vertex_buffer_memory;
 // ---- End of Class Members ----
 };
 
