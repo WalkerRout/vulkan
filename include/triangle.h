@@ -87,6 +87,10 @@ private:
   auto draw_frame(void) -> void;
 // ---- End of Rendering ----
 
+// ---- Class Members ----
+public:
+  bool framebuffer_resized{false};
+
 private:
   GLFWwindow* window;
   VkInstance instance;
@@ -118,7 +122,8 @@ private:
   std::vector<VkSemaphore> semaphores_image_available_render;
   std::vector<VkSemaphore> semaphores_render_finished_present;
   std::vector<VkFence> fences_in_flight;
-  uint32_t current_frame = 0;
+  uint32_t current_frame{0};
+// ---- End of Class Members ----
 };
 
 } // end of namespace triangle

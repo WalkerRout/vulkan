@@ -39,6 +39,7 @@ static auto choose_swap_present_mode(const std::vector<VkPresentModeKHR>&) -> Vk
 static auto choose_swap_extent(GLFWwindow*, const VkSurfaceCapabilitiesKHR&) -> VkExtent2D;
 static auto read_file(const std::string&) -> std::vector<char>;
 static auto create_shader_module(VkDevice, const std::vector<char>&) -> VkShaderModule;
+static auto framebuffer_resize_callback(GLFWwindow*, int width, int height) -> void;
 
 namespace triangle {
 
@@ -59,6 +60,8 @@ auto TriangleApplication::init_window(void) -> void {
   window = glfwCreateWindow(WIDTH, HEIGHT, "TriangleApplication", nullptr, nullptr);
   if(window == nullptr)
     throw std::runtime_error("Error - (window) is nullptr");
+
+  glfwSetFramebufferSizeCallback(window, framebuffer_resize_callback);
 
   // optional user pointer for the window, currently points to its owning object
   glfwSetWindowUserPointer(window, this);
@@ -742,6 +745,14 @@ auto TriangleApplication::record_command_buffer(VkCommandBuffer command_buffer, 
 }
 
 auto TriangleApplication::recreate_swap_chain(void) -> void {
+  // if the window is minimized (width=0 & height=0), pause until it is in foreground again 
+  int width = 0, height = 0;
+  glfwGetFramebufferSize(window, &width, &height);
+  while(width == 0 || height == 0) {
+    glfwGetFramebufferSize(window, &width, &height);
+    glfwWaitEvents();
+  }
+
   vkDeviceWaitIdle(device); // dont touch resources still in use
 
   // free resources to prepare for creation
@@ -773,7 +784,7 @@ auto TriangleApplication::cleanup_swap_chain(void) -> void {
 auto TriangleApplication::draw_frame(void) -> void {
   // wait for previous frame to finish so command buffer and semaphores are available to use
   vkWaitForFences(device, 1, &fences_in_flight[current_frame], VK_TRUE, UINT64_MAX); // UINT64_MAX timeout
-  
+
   uint32_t image_index;
   // aquire image from chosen device and swap chain, signal sem_image_available_render when finished
   auto result = vkAcquireNextImageKHR(device, swap_chain, UINT64_MAX, semaphores_image_available_render[current_frame], VK_NULL_HANDLE, &image_index);
@@ -783,7 +794,8 @@ auto TriangleApplication::draw_frame(void) -> void {
     throw std::runtime_error("Error - failed to acquire swap chain image");
   }
 
-  vkResetFences(device, 1, &fences_in_flight[current_frame]); // reset fence to unsignaled state when done waiting
+  // reset fence to unsignaled state when done waiting, only submit when doing work
+  vkResetFences(device, 1, &fences_in_flight[current_frame]);
 
   // ensure command buffer can be recorded by resetting
   vkResetCommandBuffer(command_buffers[current_frame], 0);
@@ -820,7 +832,15 @@ auto TriangleApplication::draw_frame(void) -> void {
   present_info.pImageIndices = &image_index;
   present_info.pResults = nullptr; // optional
 
-  vkQueuePresentKHR(present_queue, &present_info);
+  result = vkQueuePresentKHR(present_queue, &present_info);
+  if(result == VK_ERROR_OUT_OF_DATE_KHR || 
+     result == VK_SUBOPTIMAL_KHR || 
+     framebuffer_resized) {
+    framebuffer_resized = false;
+    recreate_swap_chain();
+  } else if (result != VK_SUCCESS) {
+    throw std::runtime_error("Error - failed to present swap chain image");
+  }
 
   current_frame = (current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
@@ -891,8 +911,8 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(
   const VkDebugUtilsMessengerCallbackDataEXT* p_callback_data,
   void* p_user_data) {
   // uncomment for only severe messages to be displayed
-  //if(message_severity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
-  std::cerr << "validation layer: " << p_callback_data->pMessage << std::endl;
+  if(message_severity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT)
+    std::cerr << "validation layer: " << p_callback_data->pMessage << std::endl;
   return VK_FALSE;
 }
 
@@ -965,4 +985,9 @@ static auto create_shader_module(VkDevice device, const std::vector<char>& code)
     throw std::runtime_error("Error - unable to create shader module");
 
   return shader_module;
+}
+
+static auto framebuffer_resize_callback(GLFWwindow* window, int width, int height) -> void {
+  auto app = reinterpret_cast<triangle::TriangleApplication*>(glfwGetWindowUserPointer(window));
+  app->framebuffer_resized = true;
 }
