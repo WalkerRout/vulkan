@@ -63,10 +63,15 @@ private:
   auto create_swap_chain(void) -> void;
   auto create_image_views(void) -> void;
   auto create_render_pass(void) -> void;
+  auto create_descriptor_set_layout(void) -> void;
+  auto create_descriptor_pool(void) -> void;
+  auto create_descriptor_sets(void) -> void;
   auto create_graphics_pipeline(void) -> void;
   auto create_framebuffers(void) -> void;
-  auto create_vertex_buffer(void) -> void;
   auto create_command_pool(void) -> void;
+  auto create_vertex_buffer(void) -> void;
+  auto create_index_buffer(void) -> void;
+  auto create_uniform_buffers(void) -> void;
   auto create_command_buffers(void) -> void;
   auto create_sync_objects(void) -> void;
 
@@ -80,6 +85,9 @@ private:
   auto recreate_swap_chain(void) -> void;
   auto cleanup_swap_chain(void) -> void;
   auto find_memory_type(uint32_t type_filter, VkMemoryPropertyFlags properties) -> uint32_t;
+  auto create_buffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& buffer_memory) -> void;
+  auto copy_buffer(VkBuffer src_buffer, VkBuffer dest_buffer, VkDeviceSize size) -> void;
+  auto update_uniform_buffer(uint32_t current_image_index) -> void;
 // ---- End of Setup/Utility ----
 
 // ---- Rendering ----
@@ -128,6 +136,18 @@ private:
 
   VkBuffer vertex_buffer;
   VkDeviceMemory vertex_buffer_memory;
+
+  VkBuffer index_buffer;
+  VkDeviceMemory index_buffer_memory;
+
+  VkDescriptorPool descriptor_pool;
+  VkDescriptorSetLayout descriptor_set_layout;
+  std::vector<VkDescriptorSet> descriptor_sets; // one for each frame in flight
+
+  // as many uniform buffers as frames in flight
+  std::vector<VkBuffer> uniform_buffers;
+  std::vector<VkDeviceMemory> uniform_buffers_memory;
+  std::vector<void*> uniform_buffers_mapped;
 // ---- End of Class Members ----
 };
 
