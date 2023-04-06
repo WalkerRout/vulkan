@@ -199,10 +199,6 @@ auto TriangleApplication::cleanup(void) -> void {
   // vulkan cleanup
   cleanup_swap_chain();
 
-  vkDestroyPipeline(device, graphics_pipeline, nullptr);
-  vkDestroyPipelineLayout(device, pipeline_layout, nullptr);
-  vkDestroyRenderPass(device, render_pass, nullptr);
-
   for(std::size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
     vkDestroyBuffer(device, uniform_buffers[i], nullptr);
     vkFreeMemory(device, uniform_buffers_memory[i], nullptr);
@@ -223,6 +219,16 @@ auto TriangleApplication::cleanup(void) -> void {
   }
 
   vkDestroyCommandPool(device, command_pool, nullptr);
+
+  // SO; WEIRD THING HAPPENS WITH LAYERS ON SOME ANDROID/WINDOWS DEVICES (AFAIK)
+  // when validation layers are enabled, it can cause an error to pop up regarding
+  // child objects that have yet to be destroyed before the device is (namely the
+  // 3 objects below this comment). when validations layers are disabled, the
+  // warning goes away.
+  // per; https://stackoverflow.com/questions/61273270/vulkan-validation-error-for-each-objects-when-destroying-device-despite-their-d
+  vkDestroyPipeline(device, graphics_pipeline, nullptr);
+  vkDestroyPipelineLayout(device, pipeline_layout, nullptr);
+  vkDestroyRenderPass(device, render_pass, nullptr);
 
   vkDestroyDevice(device, nullptr);
 
@@ -1300,7 +1306,7 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(
   const VkDebugUtilsMessengerCallbackDataEXT* p_callback_data,
   void* p_user_data) {
   // uncomment for only severe messages to be displayed
-  //if(message_severity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT)
+  if(message_severity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT)
     std::cerr << "validation layer: " << p_callback_data->pMessage << std::endl;
   return VK_FALSE;
 }
