@@ -212,11 +212,12 @@ auto VulkanApplication::init_window(void) -> void {
     if(glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
       camera.move({-camera_move_speed * delta_time, 0.0f, 0.0f});
 
+    // y-axis is inverted compared to OpenGL
     if(glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
-      camera.move({0.0f, camera_move_speed * delta_time, 0.0f});
+      camera.move({0.0f, -1*camera_move_speed * delta_time, 0.0f});
 
     if(glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
-      camera.move({0.0f, -camera_move_speed * delta_time, 0.0f});
+      camera.move({0.0f, -1*-camera_move_speed * delta_time, 0.0f});
   });
 
   // set cursor position
@@ -1323,11 +1324,11 @@ auto VulkanApplication::update_uniform_buffer(uint32_t current_image_index) -> v
   auto trans = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 0.0f)); // apply no transformation currently
   ubo.model = glm::rotate(trans, time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
   
-  ubo.view = glm::lookAt(glm::vec3(1.0f, 1.0f, 1.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+  ubo.view = glm::lookAt(glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
   ubo.view = glm::translate(ubo.view, main_camera.position); // POSITION OBJECT RELATIVE TO CAMERA VIEW
 
   // projection matrix corrects aspect ratio; rectangle appears as a square, like it should
-  ubo.projection = glm::perspective(glm::radians(45.0f), swap_chain_extent.width / (float) swap_chain_extent.height, 0.1f, 10.0f);
+  ubo.projection = glm::perspective(glm::radians(45.0f), swap_chain_extent.width / (float) swap_chain_extent.height, 0.01f, 50.0f);
   ubo.projection[1][1] *= -1; // in OpenGL, Y-clip-coordinate is inverted, so images will render upside down
 
   memcpy(uniform_buffers_mapped[current_image_index], &ubo, sizeof(ubo));
