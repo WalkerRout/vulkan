@@ -70,6 +70,7 @@ private:
   auto create_framebuffers(void) -> void;
   auto create_command_pool(void) -> void;
   auto create_texture_image(void) -> void;
+  auto create_texture_image_view(void) -> void;
   auto create_vertex_buffer(void) -> void;
   auto create_index_buffer(void) -> void;
   auto create_uniform_buffers(void) -> void;
@@ -94,6 +95,7 @@ private:
   auto end_single_time_commands(VkCommandBuffer command_buffer) -> void;
   auto transition_image_layout(VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout) -> void;
   auto copy_buffer_to_image(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height) -> void;
+  auto create_image_view(VkImage image, VkFormat format) -> VkImageView;
 // ---- End of Setup/Utility ----
 
 // ---- Rendering ----
@@ -157,6 +159,7 @@ private:
 
   VkImage texture_image;
   VkDeviceMemory texture_image_memory;
+  VkImageView texture_image_view;
 // ---- End of Class Members ----
 };
 
