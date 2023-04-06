@@ -71,6 +71,7 @@ private:
   auto create_command_pool(void) -> void;
   auto create_texture_image(void) -> void;
   auto create_texture_image_view(void) -> void;
+  auto create_texture_sampler(void) -> void;
   auto create_vertex_buffer(void) -> void;
   auto create_index_buffer(void) -> void;
   auto create_uniform_buffers(void) -> void;
@@ -160,6 +161,7 @@ private:
   VkImage texture_image;
   VkDeviceMemory texture_image_memory;
   VkImageView texture_image_view;
+  VkSampler texture_sampler;
 // ---- End of Class Members ----
 };
 

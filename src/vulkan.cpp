@@ -184,6 +184,7 @@ auto VulkanApplication::init_vulkan(void) -> void {
   create_command_pool();
   create_texture_image();
   create_texture_image_view();
+  create_texture_sampler();
   create_vertex_buffer();
   create_index_buffer();
   create_uniform_buffers();
@@ -207,6 +208,7 @@ auto VulkanApplication::cleanup(void) -> void {
   // vulkan cleanup
   cleanup_swap_chain();
 
+  vkDestroySampler(device, texture_sampler, nullptr);
   vkDestroyImageView(device, texture_image_view, nullptr);
 
   vkDestroyImage(device, texture_image, nullptr);
@@ -346,6 +348,7 @@ auto VulkanApplication::create_logical_device(void) -> void {
   }
 
   VkPhysicalDeviceFeatures device_features{};
+  device_features.samplerAnisotropy = VK_TRUE; // anisotropic filtering enabled!
 
   VkDeviceCreateInfo create_info{};
   create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -436,7 +439,7 @@ auto VulkanApplication::create_image_views(void) -> void {
   swap_chain_image_views.resize(image_count);
 
   for(std::size_t i = 0; i < image_count; ++i) {
-    createImageView(swapChainImages[i], swapChainImageFormat);
+    swap_chain_image_views[i] = create_image_view(swap_chain_images[i], swap_chain_image_format);
   }
 }
 
@@ -806,6 +809,52 @@ auto VulkanApplication::create_texture_image_view(void) -> void {
   texture_image_view = create_image_view(texture_image, VK_FORMAT_R8G8B8A8_SRGB);
 }
 
+auto VulkanApplication::create_texture_sampler(void) -> void {
+  VkPhysicalDeviceProperties properties{};
+  vkGetPhysicalDeviceProperties(physical_device, &properties);
+
+  VkSamplerCreateInfo sampler_info{};
+  sampler_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+  // bilinear filtering; 4 closest texels combined through linear interpolation 
+  // - smoother/blurred result 
+  sampler_info.magFilter = VK_FILTER_LINEAR; // could also be VK_FILTER_NEAREST
+  sampler_info.minFilter = VK_FILTER_LINEAR;
+  // uvw instead of xyz is a convention for texture-space coordinates
+  // - VK_SAMPLER_ADDRESS_MODE_REPEAT: repeat texture when going beyond the image dimensions
+  // - VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT: like repeat, but inverts the coordinates 
+  //   to mirror the image when going beyond the dimensions
+  // - VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE: take the color of the edge closest to the 
+  //   coordinate beyond the image dimensions
+  // - VK_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE: like clamp to edge, but instead uses 
+  //   edge opposite to the closest edge
+  // - VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER: return a solid color when sampling beyond 
+  //   the image dimensions
+  sampler_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+  sampler_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+  sampler_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+  // limits amount of texel samples that can be used to calculate the final color
+  // - lower values results in better performance, but lower quality results ** MACHINE-BASED OPTIMIZATION AVAILABLE **
+  // - need to retrieve properties of physical device to see how low to make it!
+  // - anisotropic filtering is actually an optional device feature, so it must be explicitly mentioned in
+  //   create_logical_device function...
+  sampler_info.anisotropyEnable = VK_TRUE;
+  // - set maxAnisotropy to the max quality sampler value in the device property limits
+  sampler_info.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
+  sampler_info.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+  sampler_info.unnormalizedCoordinates = VK_FALSE; // true=[0, tex_width) & [0, text_height), false=[0, 1) & [0, 1)
+  sampler_info.compareEnable = VK_FALSE;
+  sampler_info.compareOp = VK_COMPARE_OP_ALWAYS;
+  sampler_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+  sampler_info.mipLodBias = 0.0f;
+  sampler_info.minLod = 0.0f;
+  sampler_info.maxLod = 0.0f;
+
+  if(vkCreateSampler(device, &sampler_info, nullptr, &texture_sampler) != VK_SUCCESS)
+    throw std::runtime_error("failed to create texture sampler!");
+
+  VkPhysicalDeviceFeatures device_features{};
+}
+
 auto VulkanApplication::create_vertex_buffer(void) -> void {
   VkDeviceSize buffer_size = sizeof(vulkan_vertices[0]) * vulkan_vertices.size();
 
@@ -985,7 +1034,10 @@ auto VulkanApplication::is_device_suitable(VkPhysicalDevice device) -> bool {
     swap_chain_adequate = !swap_chain_support.formats.empty() && !swap_chain_support.present_modes.empty();
   }
 
-  return indices.is_complete() && extensions_supported && swap_chain_adequate;
+  VkPhysicalDeviceFeatures supported_features;
+  vkGetPhysicalDeviceFeatures(device, &supported_features);
+
+  return indices.is_complete() && extensions_supported && swap_chain_adequate && supported_features.samplerAnisotropy;
 }
 
 auto VulkanApplication::check_device_extension_support(VkPhysicalDevice device) -> bool {
@@ -1349,7 +1401,7 @@ auto VulkanApplication::create_image_view(VkImage image, VkFormat format) -> VkI
   if(vkCreateImageView(device, &view_info, nullptr, &image_view) != VK_SUCCESS)
     throw std::runtime_error("Error - failed to create texture image view");
 
-  return imageView;
+  return image_view;
 }
 // ---- End of Setup/Utility ----
 
