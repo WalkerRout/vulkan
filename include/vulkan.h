@@ -5,9 +5,11 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
-#include <iostream>
+#include <functional>
 #include <stdexcept>
+#include <iostream>
 #include <cstdlib>
+#include <utility>
 #include <vector>
 
 #define ENABLE_VALIDATION_LAYERS // enabled by default
@@ -33,6 +35,9 @@ const std::vector<const char*> device_extensions = {
 #endif // ENABLE_VALIDATION_LAYERS
 
 struct VulkanApplication {
+  using KeyCallback = std::function<void(GLFWwindow*, int, int, int, int)>;
+  using CursorCallback = std::function<void(GLFWwindow*, double, double)>;
+
   static const std::size_t WIDTH  = 800;
   static const std::size_t HEIGHT = 600;
   static const std::size_t MAX_FRAMES_IN_FLIGHT = 2;
@@ -53,6 +58,8 @@ private:
 // ---- Setup/Utility ----
 public:
   auto get_window_user_ptr(void) const -> void*;
+  auto add_key_callback(KeyCallback key_callback) -> void;
+  auto add_cursor_callback(CursorCallback cursor_callback) -> void;
 
 private:
   auto create_instance(void) -> void;
@@ -112,6 +119,12 @@ public:
 
 private:
   GLFWwindow* window;
+
+  std::vector<KeyCallback> key_callbacks;
+  std::vector<CursorCallback> cursor_callbacks;
+
+  std::pair<double, double> cursor_pos;
+
   VkInstance instance;
 
   VkDebugUtilsMessengerEXT debug_messenger;

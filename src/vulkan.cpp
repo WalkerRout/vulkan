@@ -171,6 +171,31 @@ auto VulkanApplication::init_window(void) -> void {
 
   // optional user pointer for the window, currently points to its owning object
   glfwSetWindowUserPointer(window, this);
+
+  glfwSetKeyCallback(window, [](GLFWwindow* window, int key, int scancode, int action, int mods){
+    const auto& key_callbacks = reinterpret_cast<VulkanApplication*>(glfwGetWindowUserPointer(window))->key_callbacks;
+    for(const auto& callback : key_callbacks)
+      callback(window, key, scancode, action, mods);
+  });
+
+  glfwSetCursorPosCallback(window, [](GLFWwindow* window, double x_pos, double y_pos){
+    const auto& cursor_callbacks = reinterpret_cast<VulkanApplication*>(glfwGetWindowUserPointer(window))->cursor_callbacks;
+    for(const auto& callback : cursor_callbacks)
+      callback(window, x_pos, y_pos);
+  });
+
+  // close window
+  add_key_callback([](GLFWwindow* window, int key, int scancode, int action, int mods){
+    if(key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+      glfwSetWindowShouldClose(window, true);
+  });
+
+  // set cursor position
+  add_cursor_callback([](GLFWwindow* window, double x_pos, double y_pos){
+    auto& [current_x, current_y] = reinterpret_cast<VulkanApplication*>(glfwGetWindowUserPointer(window))->cursor_pos;
+    current_x = x_pos;
+    current_y = y_pos;
+  });
 }
 
 auto VulkanApplication::init_vulkan(void) -> void {
@@ -200,12 +225,9 @@ auto VulkanApplication::init_vulkan(void) -> void {
 }
 
 auto VulkanApplication::main_loop(void) -> void {
-  std::size_t count = 0;
-  while(!glfwWindowShouldClose(window) && 
-        glfwGetKey(window, GLFW_KEY_ESCAPE) != GLFW_PRESS) {
+  while(!glfwWindowShouldClose(window)) {
     glfwPollEvents();
     draw_frame();
-    //std::cout << "Count: " << count++ << '\n';
   }
   vkDeviceWaitIdle(device);
 }
@@ -268,6 +290,14 @@ auto VulkanApplication::cleanup(void) -> void {
 // ---- Setup ----
 auto VulkanApplication::get_window_user_ptr(void) const -> void* {
   return glfwGetWindowUserPointer(window);
+}
+
+auto VulkanApplication::add_key_callback(KeyCallback key_callback) -> void {
+  key_callbacks.push_back(std::move(key_callback));
+}
+
+auto VulkanApplication::add_cursor_callback(CursorCallback cursor_callback) -> void {
+  cursor_callbacks.push_back(std::move(cursor_callback));
 }
 
 auto VulkanApplication::create_instance(void) -> void {
