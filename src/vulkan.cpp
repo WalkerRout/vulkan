@@ -1497,11 +1497,18 @@ auto VulkanApplication::create_image_view(VkImage image, VkFormat format) -> VkI
 }
 
 auto VulkanApplication::update_glfw_delta_time(void) -> void {
+  /*
   static double last_frame = 0;
   
   double current_frame = glfwGetTime();
   glfw_delta_time = current_frame - last_frame;
   last_frame = current_frame;
+  */
+  static auto start_time = std::chrono::high_resolution_clock::now();
+  
+  auto current_time = std::chrono::high_resolution_clock::now();
+  glfw_delta_time = std::chrono::duration<float, std::chrono::seconds::period>(current_time - start_time).count();
+  start_time = current_time;
 }
 // ---- End of Setup/Utility ----
 
