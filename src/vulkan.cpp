@@ -14,12 +14,14 @@
 #define GLM_FORCE_RADIANS
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtx/string_cast.hpp> // only for debug, printing vectors
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 #undef STD_IMAGE_IMPLEMENTATION
 
 #include "vulkan.h"
+#include "camera.h"
 
 struct UniformBufferObject {
   UniformBufferObject() = default;
@@ -190,6 +192,33 @@ auto VulkanApplication::init_window(void) -> void {
       glfwSetWindowShouldClose(window, true);
   });
 
+  // move main_camera
+  add_key_callback([](GLFWwindow* window, int key, int scancode, int action, int mods){
+    const auto app = reinterpret_cast<VulkanApplication*>(glfwGetWindowUserPointer(window));
+    auto& camera = app->main_camera;
+    auto delta_time = app->glfw_delta_time;
+
+    float camera_move_speed = 20.0f;
+
+    if(glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+      camera.move({0.0f, 0.0f, camera_move_speed * delta_time});
+
+    if(glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+      camera.move({camera_move_speed * delta_time, 0.0f, 0.0f});
+
+    if(glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+      camera.move({0.0f, 0.0f, -camera_move_speed * delta_time});
+
+    if(glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+      camera.move({-camera_move_speed * delta_time, 0.0f, 0.0f});
+
+    if(glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
+      camera.move({0.0f, camera_move_speed * delta_time, 0.0f});
+
+    if(glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+      camera.move({0.0f, -camera_move_speed * delta_time, 0.0f});
+  });
+
   // set cursor position
   add_cursor_callback([](GLFWwindow* window, double x_pos, double y_pos){
     auto& [current_x, current_y] = reinterpret_cast<VulkanApplication*>(glfwGetWindowUserPointer(window))->cursor_pos;
@@ -227,6 +256,7 @@ auto VulkanApplication::init_vulkan(void) -> void {
 auto VulkanApplication::main_loop(void) -> void {
   while(!glfwWindowShouldClose(window)) {
     glfwPollEvents();
+    update_glfw_delta_time();
     draw_frame();
   }
   vkDeviceWaitIdle(device);
@@ -1289,9 +1319,13 @@ auto VulkanApplication::update_uniform_buffer(uint32_t current_image_index) -> v
   auto time = std::chrono::duration<float, std::chrono::seconds::period>(current_time - start_time).count();
 
   UniformBufferObject ubo{};
+
   auto trans = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 0.0f)); // apply no transformation currently
   ubo.model = glm::rotate(trans, time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+  
   ubo.view = glm::lookAt(glm::vec3(1.0f, 1.0f, 1.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+  ubo.view = glm::translate(ubo.view, main_camera.position); // POSITION OBJECT RELATIVE TO CAMERA VIEW
+
   // projection matrix corrects aspect ratio; rectangle appears as a square, like it should
   ubo.projection = glm::perspective(glm::radians(45.0f), swap_chain_extent.width / (float) swap_chain_extent.height, 0.1f, 10.0f);
   ubo.projection[1][1] *= -1; // in OpenGL, Y-clip-coordinate is inverted, so images will render upside down
@@ -1459,6 +1493,14 @@ auto VulkanApplication::create_image_view(VkImage image, VkFormat format) -> VkI
     throw std::runtime_error("Error - failed to create texture image view");
 
   return image_view;
+}
+
+auto VulkanApplication::update_glfw_delta_time(void) -> void {
+  static double last_frame = 0;
+  
+  double current_frame = glfwGetTime();
+  glfw_delta_time = current_frame - last_frame;
+  last_frame = current_frame;
 }
 // ---- End of Setup/Utility ----
 

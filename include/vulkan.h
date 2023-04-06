@@ -12,6 +12,8 @@
 #include <utility>
 #include <vector>
 
+#include "camera.h"
+
 #define ENABLE_VALIDATION_LAYERS // enabled by default
 
 // private structure forward declarations
@@ -104,6 +106,8 @@ private:
   auto transition_image_layout(VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout) -> void;
   auto copy_buffer_to_image(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height) -> void;
   auto create_image_view(VkImage image, VkFormat format) -> VkImageView;
+
+  auto update_glfw_delta_time(void) -> void;
 // ---- End of Setup/Utility ----
 
 // ---- Rendering ----
@@ -119,6 +123,9 @@ public:
 
 private:
   GLFWwindow* window;
+  camera::Camera main_camera{};
+
+  double glfw_delta_time{0.0};
 
   std::vector<KeyCallback> key_callbacks;
   std::vector<CursorCallback> cursor_callbacks;
