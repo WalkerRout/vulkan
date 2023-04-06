@@ -6,7 +6,7 @@ using namespace triangle;
 
 auto main(void) -> int {
   try {
-    TriangleApplication app;
+    VulkanApplication app;
     app.run();
   } catch (const std::exception& e) {
     std::cerr << e.what() << std::endl;

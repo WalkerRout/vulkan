@@ -8,7 +8,7 @@
 
 TEST(test_triangle, test_app_creation) {
   try {
-    triangle::TriangleApplication app;
+    triangle::VulkanApplication app;
     app.run();
     EXPECT_TRUE(true);
   } catch(const std::exception& e) {

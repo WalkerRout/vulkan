@@ -15,6 +15,7 @@ set(CMAKE_CXX_STANDARD 20)
 # I../include
 # L../lib
 include_directories(include)
+include_directories(lib) # for header only libraries such as stb, glm, etc
 include_directories(src)
 # include other directories
 if(WIN32)

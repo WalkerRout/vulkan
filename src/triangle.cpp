@@ -15,6 +15,10 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+#undef STD_IMAGE_IMPLEMENTATION
+
 #include "triangle.h"
 
 struct UniformBufferObject {
@@ -22,9 +26,11 @@ struct UniformBufferObject {
   UniformBufferObject(glm::mat4 m, glm::mat4 v, glm::mat4 p): model(m), view(v), projection(p) {}
 
 public:
-  glm::mat4 model;
-  glm::mat4 view;
-  glm::mat4 projection;
+  // shader requirements; offsets must be multiples of 16 
+  // (glsl mat4 requires same alignment as vec3/vec4)
+  alignas(16) glm::mat4 model;
+  alignas(16) glm::mat4 view;
+  alignas(16) glm::mat4 projection;
 };
 
 struct TriangleVertex {
@@ -138,20 +144,20 @@ static auto framebuffer_resize_callback(GLFWwindow*, int width, int height) -> v
 namespace triangle {
 
 // ---- Main Application Pipeline ----
-auto TriangleApplication::run(void) -> void {
+auto VulkanApplication::run(void) -> void {
   init_window();
   init_vulkan();
   main_loop();
   cleanup();
 }
 
-auto TriangleApplication::init_window(void) -> void {
+auto VulkanApplication::init_window(void) -> void {
   glfwInit();
 
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
   glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
-  window = glfwCreateWindow(WIDTH, HEIGHT, "TriangleApplication", nullptr, nullptr);
+  window = glfwCreateWindow(WIDTH, HEIGHT, "VulkanApplication", nullptr, nullptr);
   if(window == nullptr)
     throw std::runtime_error("Error - (window) is nullptr");
 
@@ -161,7 +167,7 @@ auto TriangleApplication::init_window(void) -> void {
   glfwSetWindowUserPointer(window, this);
 }
 
-auto TriangleApplication::init_vulkan(void) -> void {
+auto VulkanApplication::init_vulkan(void) -> void {
   // creation order matters, as some functions are reliant on class members that must be initialized prior
   create_instance();
   setup_debug_messenger();
@@ -176,6 +182,7 @@ auto TriangleApplication::init_vulkan(void) -> void {
   create_graphics_pipeline();
   create_framebuffers();
   create_command_pool();
+  create_texture_image();
   create_vertex_buffer();
   create_index_buffer();
   create_uniform_buffers();
@@ -184,7 +191,7 @@ auto TriangleApplication::init_vulkan(void) -> void {
   create_sync_objects();
 }
 
-auto TriangleApplication::main_loop(void) -> void {
+auto VulkanApplication::main_loop(void) -> void {
   std::size_t count = 0;
   while(!glfwWindowShouldClose(window) && 
         glfwGetKey(window, GLFW_KEY_ESCAPE) != GLFW_PRESS) {
@@ -195,7 +202,7 @@ auto TriangleApplication::main_loop(void) -> void {
   vkDeviceWaitIdle(device);
 }
 
-auto TriangleApplication::cleanup(void) -> void {
+auto VulkanApplication::cleanup(void) -> void {
   // vulkan cleanup
   cleanup_swap_chain();
 
@@ -245,17 +252,17 @@ auto TriangleApplication::cleanup(void) -> void {
 // ---- End of Main Application Pipeline ----
 
 // ---- Setup ----
-auto TriangleApplication::get_window_user_ptr(void) const -> void* {
+auto VulkanApplication::get_window_user_ptr(void) const -> void* {
   return glfwGetWindowUserPointer(window);
 }
 
-auto TriangleApplication::create_instance(void) -> void {
+auto VulkanApplication::create_instance(void) -> void {
   if(enable_validation_layers && !check_validation_layer_support())
     throw std::runtime_error("Error - validation layers requested, but unavailable");
 
   VkApplicationInfo app_info{};
   app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-  app_info.pApplicationName = "Triangle Application";
+  app_info.pApplicationName = "VulkanApplication";
   app_info.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
   app_info.pEngineName = "No Engine";
   app_info.engineVersion = VK_MAKE_VERSION(1, 0, 0);
@@ -286,7 +293,7 @@ auto TriangleApplication::create_instance(void) -> void {
     throw std::runtime_error("Error - failed to create instance");
 }
 
-auto TriangleApplication::setup_debug_messenger(void) -> void {
+auto VulkanApplication::setup_debug_messenger(void) -> void {
   if(!enable_validation_layers) return;
 
   VkDebugUtilsMessengerCreateInfoEXT create_info{};
@@ -296,7 +303,7 @@ auto TriangleApplication::setup_debug_messenger(void) -> void {
     throw std::runtime_error("Error - failed to set up debug messenger");
 }
 
-auto TriangleApplication::pick_physical_device(void) -> void {
+auto VulkanApplication::pick_physical_device(void) -> void {
   uint32_t device_count = 0;
   vkEnumeratePhysicalDevices(instance, &device_count, nullptr);
   if(device_count == 0)
@@ -316,7 +323,7 @@ auto TriangleApplication::pick_physical_device(void) -> void {
     throw std::runtime_error("Error - failed to find suitable GPU(s)");
 }
 
-auto TriangleApplication::create_logical_device(void) -> void {
+auto VulkanApplication::create_logical_device(void) -> void {
   QueueFamilyIndices indices = find_queue_families(physical_device);
 
   std::vector<VkDeviceQueueCreateInfo> queue_create_infos{};
@@ -359,12 +366,12 @@ auto TriangleApplication::create_logical_device(void) -> void {
   vkGetDeviceQueue(device, indices.present_family.value(), 0, &present_queue);
 }
 
-auto TriangleApplication::create_surface(void) -> void {
+auto VulkanApplication::create_surface(void) -> void {
   if(glfwCreateWindowSurface(instance, window, nullptr, &surface) != VK_SUCCESS)
     throw std::runtime_error("Error - failed to create window surface");
 }
 
-auto TriangleApplication::create_swap_chain(void) -> void {
+auto VulkanApplication::create_swap_chain(void) -> void {
   auto swap_chain_support = query_swap_chain_support(physical_device);
 
   VkSurfaceFormatKHR surface_format = choose_swap_surface_format(swap_chain_support.formats);
@@ -418,7 +425,7 @@ auto TriangleApplication::create_swap_chain(void) -> void {
   swap_chain_extent = extent;
 }
 
-auto TriangleApplication::create_image_views(void) -> void {
+auto VulkanApplication::create_image_views(void) -> void {
   auto image_count = swap_chain_images.size();
   swap_chain_image_views.resize(image_count);
 
@@ -445,7 +452,7 @@ auto TriangleApplication::create_image_views(void) -> void {
   }
 }
 
-auto TriangleApplication::create_render_pass(void) -> void {
+auto VulkanApplication::create_render_pass(void) -> void {
   VkAttachmentDescription colour_attachment{};
   colour_attachment.format = swap_chain_image_format;
   colour_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
@@ -488,7 +495,7 @@ auto TriangleApplication::create_render_pass(void) -> void {
     throw std::runtime_error("Error - failed to create render pass");
 }
 
-auto TriangleApplication::create_descriptor_set_layout(void) -> void {
+auto VulkanApplication::create_descriptor_set_layout(void) -> void {
   VkDescriptorSetLayoutBinding ubo_layout_binding{};
   ubo_layout_binding.binding = 0; // *** layout(binding = 0)
   ubo_layout_binding.descriptorCount = 1; // number of values in the array (only 1 struct in the shader)
@@ -505,7 +512,7 @@ auto TriangleApplication::create_descriptor_set_layout(void) -> void {
     throw std::runtime_error("Error - failed to create descriptor set layout");
 }
 
-auto TriangleApplication::create_descriptor_pool(void) -> void {
+auto VulkanApplication::create_descriptor_pool(void) -> void {
   VkDescriptorPoolSize pool_size{};
   pool_size.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
   pool_size.descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
@@ -520,7 +527,7 @@ auto TriangleApplication::create_descriptor_pool(void) -> void {
     throw std::runtime_error("Error - failed to create descriptor pool");
 }
 
-auto TriangleApplication::create_descriptor_sets(void) -> void {
+auto VulkanApplication::create_descriptor_sets(void) -> void {
   descriptor_sets.resize(MAX_FRAMES_IN_FLIGHT);
 
   std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, descriptor_set_layout);
@@ -560,7 +567,7 @@ auto TriangleApplication::create_descriptor_sets(void) -> void {
   }
 }
 
-auto TriangleApplication::create_graphics_pipeline(void) -> void {
+auto VulkanApplication::create_graphics_pipeline(void) -> void {
   // src/triangle.cpp -> shaders/vert.spv & shaders/frag.spv
   auto vertex_shader_bytecode   = read_file("../shaders/vert.spv");
   auto fragment_shader_bytecode = read_file("../shaders/frag.spv");
@@ -731,7 +738,7 @@ auto TriangleApplication::create_graphics_pipeline(void) -> void {
   vkDestroyShaderModule(device, fragment_shader, nullptr);
 }
 
-auto TriangleApplication::create_framebuffers(void) -> void {
+auto VulkanApplication::create_framebuffers(void) -> void {
   swap_chain_framebuffers.resize(swap_chain_image_views.size());
 
   for(std::size_t i = 0; i < swap_chain_image_views.size(); i++) {
@@ -751,7 +758,7 @@ auto TriangleApplication::create_framebuffers(void) -> void {
   }
 }
 
-auto TriangleApplication::create_command_pool(void) -> void {
+auto VulkanApplication::create_command_pool(void) -> void {
   QueueFamilyIndices queue_family_indices = find_queue_families(physical_device);
 
   VkCommandPoolCreateInfo pool_info{};
@@ -763,7 +770,50 @@ auto TriangleApplication::create_command_pool(void) -> void {
     throw std::runtime_error("Error - failed to create command pool");
 }
 
-auto TriangleApplication::create_vertex_buffer(void) -> void {
+auto VulkanApplication::create_texture_image(void) -> void {
+  int tex_width, tex_height, tex_channels;
+  auto* pixels = stbi_load("../textures/example_a.jpg", &tex_width, &tex_height, &tex_channels, STBI_rgb_alpha);
+  VkDeviceSize image_size = tex_width * tex_height * 4;
+  
+  if(!pixels)
+    throw std::runtime_error("Error - failed to load texture image");
+
+  VkBuffer staging_buffer;
+  VkDeviceMemory staging_buffer_memory;
+  create_buffer(
+    image_size, 
+    VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 
+    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 
+    staging_buffer, 
+    staging_buffer_memory
+  );
+
+  void* data;
+  vkMapMemory(device, staging_buffer_memory, 0, image_size, 0, &data);
+  memcpy(data, pixels, static_cast<size_t>(image_size));
+  vkUnmapMemory(device, staging_buffer_memory);
+
+  stbi_image_free(pixels);
+
+  create_image(
+    tex_width, tex_height,
+    VK_FORMAT_R8G8B8A8_SRGB,
+    VK_IMAGE_TILING_OPTIMAL,
+    VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, 
+    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 
+    texture_image, 
+    texture_image_memory
+  );
+
+  transition_image_layout(texture_image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+  copy_buffer_to_image(staging_buffer, texture_image, static_cast<uint32_t>(tex_width), static_cast<uint32_t>(tex_height));
+  transition_image_layout(texture_image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+  vkDestroyBuffer(device, staging_buffer, nullptr);
+  vkFreeMemory(device, staging_buffer_memory, nullptr);
+}
+
+auto VulkanApplication::create_vertex_buffer(void) -> void {
   VkDeviceSize buffer_size = sizeof(triangle_vertices[0]) * triangle_vertices.size();
 
   VkBuffer staging_buffer;
@@ -797,7 +847,7 @@ auto TriangleApplication::create_vertex_buffer(void) -> void {
   vkFreeMemory(device, staging_buffer_memory, nullptr);
 }
 
-auto TriangleApplication::create_index_buffer(void) -> void {
+auto VulkanApplication::create_index_buffer(void) -> void {
   VkDeviceSize buffer_size = sizeof(triangle_indices[0]) * triangle_indices.size();
 
   VkBuffer staging_buffer;
@@ -829,7 +879,7 @@ auto TriangleApplication::create_index_buffer(void) -> void {
   vkFreeMemory(device, staging_buffer_memory, nullptr);
 }
 
-auto TriangleApplication::create_uniform_buffers(void) -> void {
+auto VulkanApplication::create_uniform_buffers(void) -> void {
   VkDeviceSize buffer_size = sizeof(UniformBufferObject);
 
   uniform_buffers.resize(MAX_FRAMES_IN_FLIGHT);
@@ -847,7 +897,7 @@ auto TriangleApplication::create_uniform_buffers(void) -> void {
   }
 }
 
-auto TriangleApplication::create_command_buffers(void) -> void {
+auto VulkanApplication::create_command_buffers(void) -> void {
   command_buffers.resize(MAX_FRAMES_IN_FLIGHT);
 
   VkCommandBufferAllocateInfo alloc_info{};
@@ -860,7 +910,7 @@ auto TriangleApplication::create_command_buffers(void) -> void {
     throw std::runtime_error("Error - failed to allocate command buffers");
 }
 
-auto TriangleApplication::create_sync_objects(void) -> void {
+auto VulkanApplication::create_sync_objects(void) -> void {
   semaphores_image_available_render.resize(MAX_FRAMES_IN_FLIGHT);
   semaphores_render_finished_present.resize(MAX_FRAMES_IN_FLIGHT);
   fences_in_flight.resize(MAX_FRAMES_IN_FLIGHT);
@@ -886,7 +936,7 @@ auto TriangleApplication::create_sync_objects(void) -> void {
   }
 }
 
-auto TriangleApplication::create_debug_utils_messenger_ext(
+auto VulkanApplication::create_debug_utils_messenger_ext(
   VkInstance instance, 
   const VkDebugUtilsMessengerCreateInfoEXT* p_create_info, 
   const VkAllocationCallbacks* p_allocator,
@@ -898,7 +948,7 @@ auto TriangleApplication::create_debug_utils_messenger_ext(
     return VK_ERROR_EXTENSION_NOT_PRESENT;
 }
 
-auto TriangleApplication::destroy_debug_utils_messenger_ext(
+auto VulkanApplication::destroy_debug_utils_messenger_ext(
   VkInstance instance, 
   VkDebugUtilsMessengerEXT debug_msnger, 
   const VkAllocationCallbacks* p_allocator) -> void {
@@ -907,7 +957,7 @@ auto TriangleApplication::destroy_debug_utils_messenger_ext(
     func(instance, debug_msnger, p_allocator);
 }
 
-auto TriangleApplication::find_queue_families(VkPhysicalDevice device) -> QueueFamilyIndices {
+auto VulkanApplication::find_queue_families(VkPhysicalDevice device) -> QueueFamilyIndices {
   QueueFamilyIndices indices;
 
   uint32_t queue_family_count = 0;
@@ -932,7 +982,7 @@ auto TriangleApplication::find_queue_families(VkPhysicalDevice device) -> QueueF
   return indices;
 }
 
-auto TriangleApplication::is_device_suitable(VkPhysicalDevice device) -> bool {
+auto VulkanApplication::is_device_suitable(VkPhysicalDevice device) -> bool {
   auto extensions_supported = check_device_extension_support(device);
   auto indices = find_queue_families(device);
 
@@ -945,7 +995,7 @@ auto TriangleApplication::is_device_suitable(VkPhysicalDevice device) -> bool {
   return indices.is_complete() && extensions_supported && swap_chain_adequate;
 }
 
-auto TriangleApplication::check_device_extension_support(VkPhysicalDevice device) -> bool {
+auto VulkanApplication::check_device_extension_support(VkPhysicalDevice device) -> bool {
   uint32_t extension_count;
   vkEnumerateDeviceExtensionProperties(device, nullptr, &extension_count, nullptr);
 
@@ -960,7 +1010,7 @@ auto TriangleApplication::check_device_extension_support(VkPhysicalDevice device
   return required_extensions.empty();
 }
 
-auto TriangleApplication::query_swap_chain_support(VkPhysicalDevice device) -> SwapChainSupportDetails {
+auto VulkanApplication::query_swap_chain_support(VkPhysicalDevice device) -> SwapChainSupportDetails {
   SwapChainSupportDetails details;
 
   vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &details.capabilities);
@@ -985,7 +1035,7 @@ auto TriangleApplication::query_swap_chain_support(VkPhysicalDevice device) -> S
 }
 
 // writes the commands want to execute into a command buffer
-auto TriangleApplication::record_command_buffer(VkCommandBuffer command_buffer, uint32_t image_index) -> void {
+auto VulkanApplication::record_command_buffer(VkCommandBuffer command_buffer, uint32_t image_index) -> void {
   VkCommandBufferBeginInfo begin_info{};
   begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
   begin_info.flags = 0; // optional
@@ -1038,7 +1088,7 @@ auto TriangleApplication::record_command_buffer(VkCommandBuffer command_buffer, 
     throw std::runtime_error("Error - failed to record command buffer");
 }
 
-auto TriangleApplication::recreate_swap_chain(void) -> void {
+auto VulkanApplication::recreate_swap_chain(void) -> void {
   // if the window is minimized (width=0 & height=0), pause until it is in foreground again 
   int width = 0, height = 0;
   glfwGetFramebufferSize(window, &width, &height);
@@ -1059,7 +1109,7 @@ auto TriangleApplication::recreate_swap_chain(void) -> void {
   create_framebuffers(); // directly depend on swap chain images
 }
 
-auto TriangleApplication::cleanup_swap_chain(void) -> void {
+auto VulkanApplication::cleanup_swap_chain(void) -> void {
   for(auto&& framebuffer : swap_chain_framebuffers)
     vkDestroyFramebuffer(device, framebuffer, nullptr);
 
@@ -1073,7 +1123,7 @@ auto TriangleApplication::cleanup_swap_chain(void) -> void {
 //  memory varies in terms of allowed operations and performance characteristics.
 //  Need to combine the requirements of the buffer and the application requirements
 //  to find the right type of memory to use"
-auto TriangleApplication::find_memory_type(uint32_t type_filter, VkMemoryPropertyFlags properties) -> uint32_t {
+auto VulkanApplication::find_memory_type(uint32_t type_filter, VkMemoryPropertyFlags properties) -> uint32_t {
   // structure has two arrays; memoryTypes and memoryHeaps (distinct memory resources, like dedicated VRAM or RAM swap sapce)
   VkPhysicalDeviceMemoryProperties mem_properties;
   vkGetPhysicalDeviceMemoryProperties(physical_device, &mem_properties);
@@ -1087,7 +1137,7 @@ auto TriangleApplication::find_memory_type(uint32_t type_filter, VkMemoryPropert
   throw std::runtime_error("Error - failed to find suitable memory type");
 }
 
-auto TriangleApplication::create_buffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& buffer_memory) -> void {
+auto VulkanApplication::create_buffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& buffer_memory) -> void {
   VkBufferCreateInfo buffer_info{};
   buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
   buffer_info.size = size;
@@ -1119,8 +1169,69 @@ auto TriangleApplication::create_buffer(VkDeviceSize size, VkBufferUsageFlags us
   vkBindBufferMemory(device, buffer, buffer_memory, 0);
 }
 
-auto TriangleApplication::copy_buffer(VkBuffer src_buffer, VkBuffer dest_buffer, VkDeviceSize size) -> void {
+auto VulkanApplication::copy_buffer(VkBuffer src_buffer, VkBuffer dest_buffer, VkDeviceSize size) -> void {
   // temporary command buffer allocation to perform transfer operation
+  VkCommandBuffer command_buffer = begin_single_time_commands();
+
+  VkBufferCopy copy_region{};
+  copy_region.size = size;
+  // src, dest, arr_size, arr of regions to copy
+  vkCmdCopyBuffer(command_buffer, src_buffer, dest_buffer, 1, &copy_region);
+
+  end_single_time_commands(command_buffer);
+}
+
+auto VulkanApplication::update_uniform_buffer(uint32_t current_image_index) -> void {
+  static auto start_time = std::chrono::high_resolution_clock::now();
+
+  auto current_time = std::chrono::high_resolution_clock::now();
+  auto time = std::chrono::duration<float, std::chrono::seconds::period>(current_time - start_time).count();
+
+  UniformBufferObject ubo{};
+  ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+  ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+  // projection matrix corrects aspect ratio; rectangle appears as a square, like it should
+  ubo.projection = glm::perspective(glm::radians(45.0f), swap_chain_extent.width / (float) swap_chain_extent.height, 0.1f, 10.0f);
+  ubo.projection[1][1] *= -1; // in OpenGL, Y-clip-coordinate is inverted, so images will render upside down
+
+  memcpy(uniform_buffers_mapped[current_image_index], &ubo, sizeof(ubo));
+}
+
+auto VulkanApplication::create_image(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& image_memory) -> void {
+  VkImageCreateInfo image_info{};
+  image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+  image_info.imageType = VK_IMAGE_TYPE_2D;
+  image_info.extent.width = width;
+  image_info.extent.height = height;
+  image_info.extent.depth = 1;
+  image_info.mipLevels = 1;
+  image_info.arrayLayers = 1;
+  image_info.format = format;
+  image_info.tiling = tiling;
+  image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+  image_info.usage = usage;
+  image_info.samples = VK_SAMPLE_COUNT_1_BIT;
+  image_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+  if(vkCreateImage(device, &image_info, nullptr, &image) != VK_SUCCESS)
+    throw std::runtime_error("failed to create image!");
+
+  VkMemoryRequirements mem_requirements;
+  vkGetImageMemoryRequirements(device, image, &mem_requirements);
+
+  VkMemoryAllocateInfo alloc_info{};
+  alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+  alloc_info.allocationSize = mem_requirements.size;
+  alloc_info.memoryTypeIndex = findMemoryType(mem_requirements.memoryTypeBits, properties);
+
+  if (vkAllocateMemory(device, &alloc_info, nullptr, &image_memory) != VK_SUCCESS) {
+      throw std::runtime_error("failed to allocate image memory!");
+  }
+
+  vkBindImageMemory(device, image, imageMemory, 0);
+}
+
+auto VulkanApplication::begin_single_time_commands(void) -> VkCommandBuffer {
   VkCommandBufferAllocateInfo alloc_info{};
   alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
   alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
@@ -1137,11 +1248,10 @@ auto TriangleApplication::copy_buffer(VkBuffer src_buffer, VkBuffer dest_buffer,
   // start recording the command buffer
   vkBeginCommandBuffer(command_buffer, &begin_info);
 
-  VkBufferCopy copy_region{};
-  copy_region.size = size;
-  // src, dest, arr_size, arr of regions to copy
-  vkCmdCopyBuffer(command_buffer, src_buffer, dest_buffer, 1, &copy_region);
+  return command_buffer;
+}
 
+auto VulkanApplication::end_single_time_commands(VkCommandBuffer command_buffer) -> void {
   // command buffer only contains copy command, stop recording
   vkEndCommandBuffer(command_buffer);
 
@@ -1156,25 +1266,45 @@ auto TriangleApplication::copy_buffer(VkBuffer src_buffer, VkBuffer dest_buffer,
   vkFreeCommandBuffers(device, command_pool, 1, &command_buffer);
 }
 
-auto TriangleApplication::update_uniform_buffer(uint32_t current_image_index) -> void {
-  static auto start_time = std::chrono::high_resolution_clock::now();
+auto VulkanApplication::transition_image_layout(VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout) -> void {
+  VkCommandBuffer command_buffer = begin_single_time_commands();
 
-  auto current_time = std::chrono::high_resolution_clock::now();
-  auto time = std::chrono::duration<float, std::chrono::seconds::period>(current_time - start_time).count();
+  VkImageMemoryBarrier barrier{};
+  barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+  barrier.oldLayout = old_layout; // can use VK_IMAGE_LAYOUT_UNDEFINED if dont care about existing image contents
+  barrier.newLayout = new_layout;
+  barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED; // both must be explicitly ignored
+  barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+  barrier.image = image; // **
+  barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+  barrier.subresourceRange.baseMipLevel = 0;
+  barrier.subresourceRange.levelCount = 1;
+  barrier.subresourceRange.baseArrayLayer = 0;
+  barrier.subresourceRange.layerCount = 1;
+  barrier.srcAccessMask = 0; // TODO
+  barrier.dstAccessMask = 0; // TODO
 
-  UniformBufferObject ubo{};
-  ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-  ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-  // projection matrix corrects aspect ratio; rectangle appears as a square, like it should
-  ubo.projection = glm::perspective(glm::radians(45.0f), swap_chain_extent.width / (float) swap_chain_extent.height, 0.1f, 10.0f);
-  ubo.projection[1][1] *= -1; // in OpenGL, Y-clip-coordinate is inverted, so images will render upside down
+  vkCmdPipelineBarrier(
+    commandBuffer,
+    0 /* TODO */, 0 /* TODO */,
+    0,
+    0, nullptr,
+    0, nullptr,
+    1, &barrier
+  );
 
-  memcpy(uniform_buffers_mapped[current_image_index], &ubo, sizeof(ubo));
+  end_single_time_commands(command_buffer);
+}
+
+auto VulkanApplication::copy_buffer_to_image(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height) -> void {
+  VkCommandBuffer command_buffer = begin_single_time_commands();
+
+  end_single_time_commands(command_buffer);
 }
 // ---- End of Setup/Utility ----
 
 // ---- Rendering ----
-auto TriangleApplication::draw_frame(void) -> void {
+auto VulkanApplication::draw_frame(void) -> void {
   // wait for previous frame to finish so command buffer and semaphores are available to use
   vkWaitForFences(device, 1, &fences_in_flight[current_frame], VK_TRUE, UINT64_MAX); // UINT64_MAX timeout
 
@@ -1383,6 +1513,6 @@ static auto create_shader_module(VkDevice device, const std::vector<char>& code)
 }
 
 static auto framebuffer_resize_callback(GLFWwindow* window, int width, int height) -> void {
-  auto app = reinterpret_cast<triangle::TriangleApplication*>(glfwGetWindowUserPointer(window));
+  auto app = reinterpret_cast<triangle::VulkanApplication*>(glfwGetWindowUserPointer(window));
   app->framebuffer_resized = true;
 }
